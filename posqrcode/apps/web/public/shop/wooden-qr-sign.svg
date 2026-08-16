@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7F1E8"/>
+      <stop offset="1" stop-color="#EDE2D0"/>
+    </linearGradient>
+    <linearGradient id="wood" x1="240" y1="90" x2="400" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#C48A4A"/>
+      <stop offset="1" stop-color="#8B5A2B"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="640" height="480">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#3D2914" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <ellipse cx="320" cy="395" rx="140" ry="16" fill="#3D2914" opacity="0.12"/>
+  <g filter="url(#shadow)">
+    <!-- stand base -->
+    <ellipse cx="320" cy="365" rx="70" ry="14" fill="#6B4226"/>
+    <rect x="308" y="250" width="24" height="120" rx="4" fill="#8B5A2B"/>
+    <!-- wooden board -->
+    <rect x="230" y="95" width="180" height="200" rx="12" fill="url(#wood)"/>
+    <rect x="242" y="108" width="156" height="174" rx="8" fill="#F8F1E7"/>
+  </g>
+  <rect x="268" y="125" width="104" height="104" fill="#1C1917"/>
+  <g fill="#F8F1E7">
+    <rect x="276" y="133" width="28" height="28"/>
+    <rect x="336" y="133" width="28" height="28"/>
+    <rect x="276" y="193" width="28" height="28"/>
+    <rect x="284" y="141" width="12" height="12" fill="#1C1917"/>
+    <rect x="344" y="141" width="12" height="12" fill="#1C1917"/>
+    <rect x="284" y="201" width="12" height="12" fill="#1C1917"/>
+    <rect x="316" y="157" width="12" height="12"/>
+    <rect x="332" y="173" width="10" height="10"/>
+    <rect x="300" y="185" width="8" height="8"/>
+  </g>
+  <text x="320" y="255" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" font-weight="700" fill="#8B5A2B">SCAN TO ORDER</text>
+  <text x="320" y="430" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#78716C">Wooden QR sign with stand</text>
+</svg>

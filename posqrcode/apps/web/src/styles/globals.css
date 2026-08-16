@@ -1,0 +1,450 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Inter:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Space+Grotesk:wght@500;600;700&family=Syne:wght@600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* SaaS v2 token set (BEARQR_SAAS_UI_ARCHITECTURE.md §1.1):
+     primary #16A34A · bg #F8FAFC · border #E5E7EB · text #0F172A · muted #64748B */
+  :root {
+    --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Space Grotesk", Inter, sans-serif;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 142 76% 36%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 141 84% 93%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 142 76% 36%;
+    --radius: 1rem;
+    --chart-1: 142 76% 36%;
+    --chart-2: 217 91% 60%;
+    --chart-3: 222 47% 11%;
+    --chart-4: 220 13% 91%;
+    --chart-5: 38 92% 50%;
+    --success: 142 76% 36%;
+    --warning: 38 92% 50%;
+    --info: 217 91% 60%;
+
+    /* Brand palette as variables so admin-selected themes can restyle live. */
+    --brand: 142 76% 36%;
+    --brand-hover: 142 72% 29%;
+    --brand-tint: 141 84% 93%;
+    /* Text on a solid brand fill. White on green; dark on the yellow themes. */
+    --brand-foreground: 0 0% 100%;
+    --ink-900: 222 47% 11%;
+    --ink-800: 217 33% 17%;
+    --ink-700: 215 25% 27%;
+
+    /* Surfaces + semantic tints as variables so dark mode works everywhere. */
+    --surface: 0 0% 100%;
+    --surface-page: 210 40% 98%;
+    --surface-muted: 210 40% 96%;
+    --line: 220 13% 91%;
+    --success-tint: 141 84% 93%;
+    --warning-tint: 48 96% 89%;
+    --info-tint: 214 94% 93%;
+    --danger-tint: 0 90% 94%;
+
+    /*
+      Nav chrome (sidebar + top bar) — dark rail by default.
+      Toggled via data-nav="light|dark" on <html> from Appearance.
+    */
+    --nav-bg: 222 47% 11%;
+    --nav-fg: 0 0% 100%;
+    --nav-muted: 0 0% 100% / 0.55;
+    --nav-hover: 0 0% 100% / 0.08;
+    --nav-border: 0 0% 100% / 0.1;
+    --nav-active: 217 33% 17%;
+    /* Optional chrome overrides (set inline by useAppearance) */
+    --chrome-navbar: transparent;
+    --chrome-sidebar: transparent;
+    --chrome-icon: currentColor;
+    --chrome-text: currentColor;
+    --chrome-layout: transparent;
+    --sidebar: 222 47% 11%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 17%;
+    --sidebar-primary: 142 76% 36%;
+  }
+
+  /* Light rail — surface chrome, brand accents still come from --brand. */
+  html[data-nav='light'] {
+    --nav-bg: 0 0% 100%;
+    --nav-fg: 222 47% 11%;
+    --nav-muted: 215 16% 47%;
+    --nav-hover: 210 40% 96%;
+    --nav-border: 220 13% 91%;
+    --nav-active: 210 40% 96%;
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-accent: 210 40% 96%;
+  }
+
+  /* ---- Admin-selectable themes (set via data-theme on <html>) ---- */
+
+  /* The v1 signature yellow, kept as an opt-in theme. */
+  [data-theme='amber'] {
+    --brand: 56 93% 64%;
+    --brand-hover: 56 91% 56%;
+    --brand-tint: 56 89% 93%;
+    --brand-foreground: 15 22% 4%;
+    --ink-900: 15 22% 4%;
+    --ink-800: 22 41% 12%;
+    --ink-700: 29 48% 24%;
+    --primary: 56 93% 64%;
+    --primary-foreground: 15 22% 4%;
+    --ring: 56 93% 64%;
+    --accent: 56 89% 93%;
+    --sidebar: 15 22% 4%;
+    --sidebar-primary: 56 93% 64%;
+    --sidebar-accent: 22 41% 12%;
+  }
+
+  [data-theme='butter'] {
+    --brand-foreground: 28 45% 8%;
+    --primary-foreground: 28 45% 8%;
+    --brand: 43 85% 66%;
+    --brand-hover: 43 80% 56%;
+    --brand-tint: 43 80% 93%;
+    --ink-900: 28 45% 8%;
+    --ink-800: 28 42% 15%;
+    --ink-700: 28 38% 26%;
+    --primary: 43 85% 66%;
+    --ring: 43 85% 66%;
+    --accent: 43 80% 93%;
+    --sidebar: 28 45% 8%;
+    --sidebar-primary: 43 85% 66%;
+    --sidebar-accent: 28 42% 15%;
+  }
+
+  [data-theme='berry'] {
+    --brand-foreground: 0 0% 100%;
+    --brand: 16 80% 58%;
+    --brand-hover: 16 75% 50%;
+    --brand-tint: 16 75% 93%;
+    --ink-900: 338 60% 10%;
+    --ink-800: 338 55% 17%;
+    --ink-700: 338 40% 28%;
+    --primary: 16 80% 58%;
+    --primary-foreground: 0 0% 100%;
+    --ring: 16 80% 58%;
+    --accent: 16 75% 93%;
+    --sidebar: 338 60% 10%;
+    --sidebar-primary: 16 80% 58%;
+    --sidebar-accent: 338 55% 17%;
+  }
+
+  /* Dark-rail nav picks up themed ink (unless light rail is selected). */
+  html[data-nav='dark'] {
+    --nav-bg: var(--ink-900);
+    --nav-active: var(--ink-800);
+    --nav-fg: 0 0% 100%;
+    --nav-muted: 0 0% 100% / 0.55;
+    --nav-hover: 0 0% 100% / 0.08;
+    --nav-border: 0 0% 100% / 0.1;
+  }
+
+  html[data-theme='amber'][data-nav='dark'],
+  html[data-theme='butter'][data-nav='dark'] {
+    /* Yellow/butter brands sit on near-black ink — keep white labels. */
+    --nav-fg: 0 0% 100%;
+  }
+
+  /* ---- Dark mode (admin-toggled; class set on <html>) ---- */
+
+  .dark {
+    --brand-tint: 142 40% 14%;
+    --background: 220 15% 8%;
+    --foreground: 210 20% 96%;
+    --card: 220 15% 11%;
+    --card-foreground: 210 20% 96%;
+    --popover: 220 15% 11%;
+    --popover-foreground: 210 20% 96%;
+    --secondary: 217 15% 16%;
+    --secondary-foreground: 210 20% 96%;
+    --muted: 217 15% 16%;
+    --muted-foreground: 215 12% 68%;
+    --border: 217 15% 22%;
+    --input: 217 15% 22%;
+    --surface: 220 15% 11%;
+    --surface-page: 220 15% 8%;
+    --surface-muted: 217 15% 16%;
+    --line: 217 15% 22%;
+    --success-tint: 142 40% 14%;
+    --warning-tint: 33 45% 14%;
+    --info-tint: 221 45% 16%;
+    --danger-tint: 0 45% 15%;
+    --accent: 142 40% 14%;
+    --accent-foreground: 210 20% 96%;
+  }
+
+  .dark[data-theme='amber'] {
+    --brand-tint: 52 35% 14%;
+    --accent: 52 35% 14%;
+    --ink-900: 15 22% 6%;
+    --ink-800: 22 35% 14%;
+  }
+
+  .dark[data-theme='butter'] {
+    --brand-tint: 40 35% 13%;
+    --accent: 40 35% 13%;
+    --ink-900: 28 40% 7%;
+    --ink-800: 28 35% 13%;
+  }
+
+  .dark[data-theme='berry'] {
+    --brand-tint: 350 35% 14%;
+    --accent: 350 35% 14%;
+    --ink-900: 338 50% 9%;
+    --ink-800: 338 45% 15%;
+  }
+
+  /* Light rail in dark mode — cards stay dark, not pure white. */
+  .dark[data-nav='light'] {
+    --nav-bg: 220 15% 11%;
+    --nav-fg: 210 20% 96%;
+    --nav-muted: 215 12% 68%;
+    --nav-hover: 217 15% 16%;
+    --nav-border: 217 15% 22%;
+    --nav-active: 217 15% 16%;
+  }
+
+  :root {
+    color-scheme: light;
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+
+  .dark {
+    color-scheme: dark;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    @apply min-h-dvh bg-surface-page text-foreground font-sans antialiased;
+    font-family: var(--font-sans);
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  #root {
+    min-height: 100%;
+    height: 100%;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    @apply tracking-tight;
+  }
+
+  /* Custom chrome colours from Settings → Appearance */
+  html[data-chrome-navbar] .chrome-navbar {
+    background-color: var(--chrome-navbar) !important;
+  }
+
+  html[data-chrome-icons] .nav-icon {
+    color: var(--chrome-icon);
+  }
+
+  /* Force selected typeface across admin UI font utilities */
+  html[data-font] body,
+  html[data-font] #root,
+  html[data-font] .font-sans,
+  html[data-font] .font-marketBody {
+    font-family: var(--font-sans) !important;
+  }
+
+  html[data-font] h1,
+  html[data-font] h2,
+  html[data-font] h3,
+  html[data-font] .font-display {
+    font-family: var(--font-display) !important;
+  }
+
+  /* Text colour reaches ink utilities + default text */
+  html[data-chrome-text] body,
+  html[data-chrome-text] #root {
+    color: var(--chrome-text);
+  }
+
+  html[data-chrome-text] .text-foreground,
+  html[data-chrome-text] .text-ink-900,
+  html[data-chrome-text] .text-ink-800,
+  html[data-chrome-text] .text-ink-700,
+  html[data-chrome-text] .text-card-foreground,
+  html[data-chrome-text] .text-popover-foreground {
+    color: var(--chrome-text) !important;
+  }
+
+  html[data-chrome-layout] body,
+  html[data-chrome-layout] #root {
+    background-color: var(--chrome-layout);
+  }
+
+  html[data-chrome-layout] .min-h-screen.bg-surface-page,
+  html[data-chrome-layout] .bg-surface-page {
+    background-color: var(--chrome-layout) !important;
+  }
+
+  /*
+    Public / entry surfaces — always white (light) mode.
+    Ignores admin dark mode + chrome layout/text overrides so /portals,
+    Super login, etc. stay readable.
+  */
+  .force-light {
+    color-scheme: light !important;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 141 84% 93%;
+    --accent-foreground: 222 47% 11%;
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --surface: 0 0% 100%;
+    --surface-page: 210 40% 98%;
+    --surface-muted: 210 40% 96%;
+    --line: 220 13% 91%;
+    --ink-900: 222 47% 11%;
+    --ink-800: 217 33% 17%;
+    --ink-700: 215 25% 27%;
+    /* Light tints even when html is .dark (admin toggled). */
+    --brand-tint: 141 84% 93%;
+    --accent: 141 84% 93%;
+    --success-tint: 141 84% 93%;
+    --warning-tint: 48 96% 89%;
+    --info-tint: 214 94% 93%;
+    --danger-tint: 0 90% 94%;
+    background-color: hsl(210 40% 98%) !important;
+    color: hsl(222 47% 11%);
+  }
+
+  html[data-theme='amber'] .force-light {
+    --brand-tint: 56 89% 93%;
+    --accent: 56 89% 93%;
+    --brand-foreground: 15 22% 4%;
+  }
+
+  html[data-theme='butter'] .force-light {
+    --brand-tint: 43 80% 92%;
+    --accent: 43 80% 92%;
+    --brand-foreground: 28 45% 8%;
+  }
+
+  html[data-theme='berry'] .force-light {
+    --brand-tint: 18 90% 94%;
+    --accent: 18 90% 94%;
+  }
+
+  .force-light .bg-surface-page,
+  .force-light.bg-surface-page {
+    background-color: hsl(210 40% 98%) !important;
+  }
+
+  .force-light .bg-surface {
+    background-color: #ffffff !important;
+  }
+
+  .force-light .bg-surface-muted {
+    background-color: hsl(210 40% 96%) !important;
+  }
+
+  .force-light .border-line,
+  .force-light .border-border {
+    border-color: hsl(220 13% 91%) !important;
+  }
+
+  .force-light .text-foreground,
+  .force-light .text-ink-900,
+  .force-light .text-ink-800,
+  .force-light .text-card-foreground {
+    color: hsl(222 47% 11%) !important;
+  }
+
+  .force-light .text-muted-foreground {
+    color: hsl(215 16% 47%) !important;
+  }
+
+  /* Chrome layout/text must not paint public pages dark. */
+  html[data-chrome-layout] .force-light,
+  html[data-chrome-layout] .force-light.bg-surface-page,
+  html[data-chrome-layout] .force-light .bg-surface-page {
+    background-color: hsl(210 40% 98%) !important;
+  }
+
+  html[data-chrome-text] .force-light,
+  html[data-chrome-text] .force-light .text-foreground,
+  html[data-chrome-text] .force-light .text-ink-900,
+  html[data-chrome-text] .force-light .text-ink-800,
+  html[data-chrome-text] .force-light .text-ink-700,
+  html[data-chrome-text] .force-light .text-card-foreground {
+    color: hsl(222 47% 11%) !important;
+  }
+
+  html[data-chrome-text] .force-light .text-muted-foreground {
+    color: hsl(215 16% 47%) !important;
+  }
+
+  /* Auth login/signup — always light fields (ignore admin dark / chrome text). */
+  .auth-shell,
+  .auth-shell input,
+  .auth-shell textarea {
+    color-scheme: light;
+  }
+
+  .auth-shell input,
+  .auth-shell textarea {
+    background-color: #ffffff !important;
+    color: #1a1d26 !important;
+    caret-color: #1a1d26;
+    border-color: #d8dee9 !important;
+  }
+
+  .auth-shell input::placeholder,
+  .auth-shell textarea::placeholder {
+    color: #a0a8b8 !important;
+  }
+
+  .auth-shell input:-webkit-autofill,
+  .auth-shell input:-webkit-autofill:hover,
+  .auth-shell input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #1a1d26 !important;
+    caret-color: #1a1d26;
+    box-shadow: inset 0 0 0 1000px #ffffff !important;
+    transition: background-color 99999s ease-out;
+  }
+}

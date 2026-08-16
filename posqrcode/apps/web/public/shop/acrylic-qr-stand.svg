@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="640" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4F7FB"/>
+      <stop offset="1" stop-color="#E8EEF5"/>
+    </linearGradient>
+    <linearGradient id="acryl" x1="220" y1="80" x2="420" y2="360" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#DCE7F2" stop-opacity="0.85"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="640" height="480" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <ellipse cx="320" cy="390" rx="150" ry="18" fill="#0F172A" opacity="0.08"/>
+  <!-- acrylic L-stand -->
+  <g filter="url(#shadow)">
+    <path d="M230 120 L410 120 L410 300 L360 360 L230 360 Z" fill="url(#acryl)" stroke="#B8C7D9" stroke-width="3"/>
+    <path d="M230 360 L410 300 L455 320 L275 380 Z" fill="#C5D4E4" opacity="0.7"/>
+  </g>
+  <!-- QR card -->
+  <rect x="255" y="145" width="130" height="150" rx="8" fill="#FFFFFF" stroke="#E2E8F0"/>
+  <rect x="270" y="160" width="100" height="100" fill="#0F172A"/>
+  <!-- fake QR modules -->
+  <g fill="#FFFFFF">
+    <rect x="278" y="168" width="28" height="28"/>
+    <rect x="334" y="168" width="28" height="28"/>
+    <rect x="278" y="224" width="28" height="28"/>
+    <rect x="286" y="176" width="12" height="12" fill="#0F172A"/>
+    <rect x="342" y="176" width="12" height="12" fill="#0F172A"/>
+    <rect x="286" y="232" width="12" height="12" fill="#0F172A"/>
+    <rect x="318" y="190" width="10" height="10"/>
+    <rect x="332" y="204" width="10" height="10"/>
+    <rect x="304" y="218" width="8" height="8"/>
+    <rect x="348" y="230" width="8" height="8"/>
+  </g>
+  <text x="320" y="278" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" font-weight="700" fill="#16A34A">SCAN MENU</text>
+  <text x="320" y="430" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#64748B">Acrylic QR table stand</text>
+</svg>

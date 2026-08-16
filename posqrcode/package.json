@@ -1,0 +1,31 @@
+{
+  "name": "bear360",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @bear360/web --filter @bear360/api dev",
+    "dev:web": "pnpm --filter @bear360/web dev",
+    "dev:api": "pnpm --filter @bear360/api dev",
+    "build": "pnpm --filter @bear360/shared build && pnpm --filter @bear360/api build && pnpm --filter @bear360/web build",
+    "typecheck": "pnpm -r typecheck",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @bear360/api prisma:migrate",
+    "db:seed": "pnpm --filter @bear360/api prisma:seed",
+    "db:generate": "pnpm --filter @bear360/api prisma:generate"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@nestjs/core",
+      "@prisma/client",
+      "@prisma/engines",
+      "argon2",
+      "esbuild",
+      "prisma"
+    ]
+  }
+}

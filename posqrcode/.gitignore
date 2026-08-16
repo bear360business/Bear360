@@ -1,0 +1,10 @@
+node_modules
+dist
+*.local
+.DS_Store
+npm-debug.log*
+.env
+apps/api/.env
+*.tsbuildinfo
+.turbo
+coverage

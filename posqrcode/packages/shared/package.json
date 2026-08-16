@@ -1,0 +1,19 @@
+{
+  "name": "@bear360/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "src"],
+  "scripts": {
+    "build": "rm -rf dist && tsc -p tsconfig.json && find src -name '*.js' -delete && find src -name '*.d.ts' -delete && find src -name '*.map' -delete",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "~5.6.3"
+  }
+}

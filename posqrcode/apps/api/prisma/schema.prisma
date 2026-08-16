@@ -1,0 +1,320 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthRole {
+  super
+  restaurant
+  kitchen
+  staff
+}
+
+enum RestaurantStatus {
+  active
+  trial
+  past_due
+  suspended
+  cancelled
+}
+
+enum PlanId {
+  basic
+  professional
+  enterprise
+}
+
+enum OrderStatus {
+  pending
+  preparing
+  ready
+  served
+  paid
+  cancelled
+  void
+}
+
+enum OrderType {
+  dine_in
+  takeaway
+  delivery
+}
+
+enum OtpPurpose {
+  signup
+  forgot
+}
+
+enum TableStatus {
+  free
+  occupied
+  reserved
+}
+
+model Organization {
+  id          String       @id @default(cuid())
+  name        String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  restaurants Restaurant[]
+  users       User[]
+}
+
+model Restaurant {
+  id             String           @id @default(cuid())
+  organizationId String
+  organization   Organization     @relation(fields: [organizationId], references: [id])
+  slug           String           @unique
+  name           String
+  phone          String           @default("+91 98765 43210")
+  address        String?
+  city           String           @default("Chennai")
+  country        String           @default("IN")
+  cuisine        String           @default("")
+  ownerName      String           @default("Owner")
+  ownerEmail     String           @default("")
+  whatsapp       String?
+  mapsLink       String?
+  planId         PlanId           @default(basic)
+  industryId     String           @default("restaurants")
+  status         RestaurantStatus @default(trial)
+  gstRatePct     Decimal          @default(5) @db.Decimal(5, 2)
+  gstin          String?
+  currency       String           @default("INR")
+  isOpen         Boolean          @default(true)
+  opensAt        String?
+  closesAt       String?
+  logoImage      String?
+  coverImage     String?
+  emoji          String           @default("🍽️")
+  /// Guest ops, service config, locales, notifications — JSON blob.
+  settings       Json             @default("{}")
+  /// Razorpay SaaS billing
+  razorpayCustomerId     String?
+  razorpaySubscriptionId String?
+  razorpayPlanId         String?
+  subscriptionStatus     String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  memberships   UserRestaurant[]
+  employees     Employee[]
+  orders        Order[]
+  menuItems     MenuItem[]
+  menuCategories MenuCategory[]
+  tables        DiningTable[]
+  ingredients   Ingredient[]
+  purchases     Purchase[]
+
+  @@index([organizationId])
+  @@index([razorpaySubscriptionId])
+}
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  passwordHash   String
+  role           AuthRole
+  organizationId String?
+  organization   Organization?  @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  memberships   UserRestaurant[]
+  refreshTokens RefreshToken[]
+}
+
+model UserRestaurant {
+  id           String     @id @default(cuid())
+  userId       String
+  restaurantId String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, restaurantId])
+  @@index([restaurantId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model OtpChallenge {
+  id        String     @id @default(cuid())
+  email     String
+  purpose   OtpPurpose
+  codeHash  String
+  /// Short-lived token issued after successful verify — consumed by register/reset.
+  verifiedTokenHash String?
+  expiresAt DateTime
+  consumedAt DateTime?
+  createdAt DateTime   @default(now())
+
+  @@index([email, purpose])
+}
+
+model Employee {
+  id             String     @id @default(cuid())
+  restaurantId   String
+  restaurant     Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name           String
+  phone          String
+  email          String?
+  pinHash        String
+  roleId         String     @default("waiter")
+  status         String     @default("active")
+  hourlyRate     Decimal    @default(0) @db.Decimal(12, 2)
+  active         Boolean    @default(true)
+  posAccess      Boolean    @default(true)
+  posPermissions Json       @default("{}")
+  joinedAt       DateTime   @default(now())
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  @@unique([restaurantId, phone])
+  @@index([restaurantId])
+}
+
+model MenuCategory {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  emoji        String     @default("🍽️")
+  sortOrder    Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  items        MenuItem[]
+
+  @@index([restaurantId])
+}
+
+model MenuItem {
+  id           String        @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  categoryId   String?
+  category     MenuCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  name         String
+  description  String        @default("")
+  price        Decimal       @db.Decimal(12, 2)
+  veg          Boolean       @default(true)
+  spicy        Boolean       @default(false)
+  available    Boolean       @default(true)
+  popular      Boolean       @default(false)
+  image        String        @default("")
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([restaurantId])
+  @@index([categoryId])
+}
+
+model DiningTable {
+  id            String      @id @default(cuid())
+  restaurantId  String
+  restaurant    Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name          String
+  number        Int
+  seats         Int         @default(4)
+  status        TableStatus @default(free)
+  zone          String      @default("Main")
+  activeOrderId String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@unique([restaurantId, number])
+  @@index([restaurantId])
+}
+
+model Ingredient {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  category     String     @default("General")
+  unit         String     @default("kg")
+  stock        Decimal    @default(0) @db.Decimal(12, 3)
+  reorder      Decimal    @default(0) @db.Decimal(12, 3)
+  costPerUnit  Decimal    @default(0) @db.Decimal(12, 2)
+  supplier     String     @default("")
+  dailyUse     Decimal    @default(0) @db.Decimal(12, 3)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([restaurantId])
+}
+
+model Purchase {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  supplier     String
+  invoiceNo    String     @default("")
+  date         String
+  lines        Json
+  gstPct       Decimal    @default(0) @db.Decimal(5, 2)
+  note         String?
+  createdAt    DateTime   @default(now())
+
+  @@index([restaurantId])
+}
+
+model Order {
+  id                 String      @id @default(cuid())
+  restaurantId       String
+  restaurant         Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  number             String
+  tableId            String?
+  type               OrderType   @default(dine_in)
+  channel            String      @default("qr")
+  status             OrderStatus @default(pending)
+  lines              Json
+  subtotal           Decimal     @db.Decimal(12, 2)
+  tax                Decimal     @db.Decimal(12, 2)
+  total              Decimal     @db.Decimal(12, 2)
+  guestName          String?
+  guestPhone         String?
+  notes              String?
+  paymentMethod      String?
+  paid               Boolean     @default(false)
+  razorpayOrderId    String?
+  razorpayPaymentId  String?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+
+  @@unique([restaurantId, number])
+  @@index([restaurantId, status])
+  @@index([restaurantId, createdAt])
+  @@index([razorpayOrderId])
+}
+
+model PlatformConfig {
+  id        String   @id @default("default")
+  flags     Json     @default("{}")
+  updatedAt DateTime @updatedAt
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  restaurantId String?
+  actorId      String?
+  action       String
+  meta         Json?
+  createdAt    DateTime @default(now())
+
+  @@index([restaurantId, createdAt])
+}

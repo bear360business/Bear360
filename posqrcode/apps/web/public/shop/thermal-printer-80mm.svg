@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480" viewBox="0 0 640 480" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="640" y2="480">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="1" stop-color="#E2E8F0"/>
+    </linearGradient>
+    <linearGradient id="body" x1="180" y1="140" x2="460" y2="360">
+      <stop stop-color="#1E293B"/>
+      <stop offset="1" stop-color="#020617"/>
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="16" stdDeviation="18" flood-color="#020617" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+  <rect width="640" height="480" fill="url(#bg)"/>
+  <ellipse cx="320" cy="400" rx="160" ry="18" fill="#020617" opacity="0.1"/>
+  <!-- receipt -->
+  <g filter="url(#shadow)">
+    <path d="M270 70 H370 V150 Q360 158 370 166 V190 H270 V166 Q280 158 270 150 Z" fill="#FFFFFF" stroke="#E2E8F0"/>
+    <line x1="285" y1="90" x2="355" y2="90" stroke="#94A3B8" stroke-width="3"/>
+    <line x1="285" y1="108" x2="345" y2="108" stroke="#CBD5E1" stroke-width="2"/>
+    <line x1="285" y1="122" x2="350" y2="122" stroke="#CBD5E1" stroke-width="2"/>
+    <line x1="285" y1="136" x2="335" y2="136" stroke="#CBD5E1" stroke-width="2"/>
+  </g>
+  <!-- 80mm printer -->
+  <g filter="url(#shadow)">
+    <rect x="190" y="190" width="260" height="170" rx="18" fill="url(#body)"/>
+    <rect x="210" y="210" width="220" height="50" rx="8" fill="#334155"/>
+    <rect x="230" y="222" width="100" height="10" rx="5" fill="#64748B"/>
+    <rect x="230" y="240" width="70" height="8" rx="4" fill="#475569"/>
+    <circle cx="400" cy="235" r="12" fill="#22C55E"/>
+    <text x="320" y="310" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" font-weight="700" fill="#94A3B8">80mm · USB · LAN · BT</text>
+    <rect x="240" y="325" width="160" height="18" rx="4" fill="#0F172A"/>
+  </g>
+  <text x="320" y="430" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="600" fill="#64748B">80mm thermal receipt printer</text>
+</svg>
