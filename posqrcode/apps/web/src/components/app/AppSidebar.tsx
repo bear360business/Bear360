@@ -23,6 +23,8 @@ import {
   Users,
   UtensilsCrossed,
   Wallet,
+  Globe,
+  HelpCircle,
   type LucideIcon,
 } from 'lucide-react'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
@@ -179,10 +181,40 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
   const industryHidden = new Set(industry.navHints.hide)
   // Platform controls (super admin) can hide restaurant features live.
   // Industry navHints hide modules entirely (cloud kitchen → no Tables).
-  const enabled = (to: string) =>
-    !industryHidden.has(to) &&
-    (to !== '/kitchen' || config.service.kitchenDisplay) &&
-    (to !== '/reports' || config.adminUi.showReports)
+  const PATH_TO_MENU_KEY: Record<string, string> = {
+    '/dashboard': 'dashboard',
+    '/tables': 'tables',
+    '/menu': 'menu',
+    '/orders': 'orders',
+    '/integrations': 'integrations',
+    '/pos': 'pos',
+    '/kitchen': 'kitchen',
+    '/qr': 'qrDesigner',
+    '/inventory': 'inventory',
+    '/staff': 'staff',
+    '/venue-setup': 'orderingCheckout',
+    '/customers': 'customers',
+    '/ai': 'aiInsights',
+    '/shop': 'shop',
+    '/profile': 'storeProfile',
+    '/support': 'support',
+    '/billing': 'billing',
+    '/settings': 'settings',
+  }
+
+  // Platform controls (super admin) can hide restaurant features live.
+  // Industry navHints hide modules entirely (cloud kitchen → no Tables).
+  const enabled = (to: string) => {
+    if (industryHidden.has(to)) return false
+    const key = PATH_TO_MENU_KEY[to]
+    if (key && (config.menus as any)?.[key] === false) {
+      return false
+    }
+    return (
+      (to !== '/kitchen' || config.service.kitchenDisplay) &&
+      (to !== '/reports' || config.adminUi.showReports)
+    )
+  }
   // Plan-gated items stay visible and locked — hiding them creates support
   // tickets and kills discovery (doc §5.2 style A). What the *owner* hides in
   // Settings → Side menu is different, and applied by useNavConfig.
@@ -218,6 +250,32 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
       ].filter((s) => s.items.length > 0)
     : []
 
+  const customSections: NavSection[] =
+    config.customMenus && config.customMenus.length > 0
+      ? [
+          {
+            label: 'Platform Links',
+            items: config.customMenus
+              .filter((m) => m.enabled)
+              .map((m) => {
+                const IconComponent = (() => {
+                  if (m.icon === 'Sparkles') return Sparkles
+                  if (m.icon === 'Globe') return Globe
+                  if (m.icon === 'HelpCircle') return HelpCircle
+                  if (m.icon === 'Info') return LifeBuoy
+                  return Link2
+                })()
+                return {
+                  to: m.to,
+                  label: m.label,
+                  icon: IconComponent,
+                  external: true,
+                }
+              }),
+          },
+        ].filter((s) => s.items.length > 0)
+      : []
+
   const sections = isStaff
     ? staffSections
     : applyNavConfig(
@@ -233,7 +291,8 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
                   .filter((i) => enabled(i.to) && !industryBlocked(i))
                   .map((i) => relabel({ ...i, badge: liveBadge(i.to, i.badge) })),
               }))
-              .filter((section) => section.items.length > 0),
+              .filter((section) => section.items.length > 0)
+              .concat(customSections),
       )
 
   const staffName = session?.staffName || 'Staff'
@@ -336,6 +395,27 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
                           <Lock className="nav-icon absolute right-2 top-2 h-2.5 w-2.5" />
                         )}
                       </button>
+                    </li>
+                  )
+                }
+                const isExternalWebLink = item.external && item.to.startsWith('http')
+                if (isExternalWebLink) {
+                  return (
+                    <li key={item.to}>
+                      <a
+                        href={item.to}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={collapsed ? item.label : undefined}
+                        className={cn(
+                          'relative flex h-10 items-center gap-3 rounded-[10px] px-3 text-sm font-medium transition-colors duration-200 text-nav-muted hover:bg-nav-hover hover:text-nav-fg',
+                          collapsed && 'justify-center px-0',
+                        )}
+                      >
+                        <item.icon className="nav-icon h-5 w-5 shrink-0" strokeWidth={1.75} />
+                        {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                        {!collapsed && <ExternalLink className="nav-icon h-3.5 w-3.5 opacity-60" />}
+                      </a>
                     </li>
                   )
                 }

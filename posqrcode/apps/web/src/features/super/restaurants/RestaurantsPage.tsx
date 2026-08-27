@@ -54,6 +54,7 @@ export function RestaurantsPage() {
   const [params, setParams] = useSearchParams()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null)
+  const [viewTarget, setViewTarget] = useState<Restaurant | null>(null)
 
   const toggleVenueStatus = (r: Restaurant) => {
     const suspending = r.status !== 'suspended'
@@ -341,6 +342,9 @@ export function RestaurantsPage() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => setViewTarget(r)}>
+                              View Info
+                            </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/super/restaurants/${r.id}/edit`}>Edit</Link>
                             </DropdownMenuItem>
@@ -416,6 +420,90 @@ export function RestaurantsPage() {
           )}
         </div>
       )}
+
+      <Dialog open={viewTarget !== null} onOpenChange={(open) => !open && setViewTarget(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Store className="h-5 w-5 text-brand" />
+              {viewTarget?.name} Details
+            </DialogTitle>
+            <DialogDescription>
+              View-only information for this restaurant.
+            </DialogDescription>
+          </DialogHeader>
+          {viewTarget && (
+            <div className="grid grid-cols-2 gap-4 py-4 text-sm">
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Restaurant ID / Slug</p>
+                <p className="font-semibold text-foreground">{viewTarget.id}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Industry</p>
+                <p className="font-semibold text-foreground">{getIndustryProfile(viewTarget.industryId).name}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Owner Name</p>
+                <p className="font-semibold text-foreground">{viewTarget.ownerName || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Owner Email</p>
+                <p className="font-semibold text-foreground">{viewTarget.ownerEmail || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Phone Number</p>
+                <p className="font-semibold text-foreground">{viewTarget.phone || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">WhatsApp</p>
+                <p className="font-semibold text-foreground">{viewTarget.whatsapp || '—'}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Plan</p>
+                <p className="font-semibold text-foreground">
+                  {getPlanById(viewTarget.planId).name} ({inr(viewTarget.mrr)}/yr)
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Status</p>
+                <div>
+                  <StatusBadge status={viewTarget.status} />
+                </div>
+              </div>
+              <div className="col-span-2 space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">City & Address</p>
+                <p className="font-semibold text-foreground">
+                  {viewTarget.address ? `${viewTarget.address}, ` : ''}{viewTarget.city || '—'}
+                </p>
+              </div>
+              {viewTarget.cuisine && (
+                <div className="col-span-2 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Cuisine / Description</p>
+                  <p className="font-semibold text-foreground">{viewTarget.cuisine}</p>
+                </div>
+              )}
+              {viewTarget.mapsLink && (
+                <div className="col-span-2 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Google Maps Link</p>
+                  <a
+                    href={viewTarget.mapsLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-brand hover:underline break-all font-semibold"
+                  >
+                    {viewTarget.mapsLink}
+                  </a>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button className="rounded-full" onClick={() => setViewTarget(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
         <DialogContent className="max-w-md">

@@ -30,6 +30,7 @@ import {
 } from '@/lib/venue-scope'
 import { reportApiError } from '@/lib/api-error'
 import { useAuthTick } from '@/hooks/use-auth-tick'
+import { isStoreSetupPending } from '@/features/admin/onboarding/store-setup'
 
 const CAT_KEY = 'bearqr:menu-categories'
 const ITEM_KEY = 'bearqr:menu-items'
@@ -98,7 +99,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   }), [])
 
   useEffect(() => {
-    if (mock) return
+    if (mock || isStoreSetupPending()) return
     let cancelled = false
     const load = async () => {
       try {

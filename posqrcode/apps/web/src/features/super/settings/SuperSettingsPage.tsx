@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { ImagePlus, RotateCcw } from 'lucide-react'
+import { ImagePlus, RotateCcw, Plus, Trash2, Edit, HelpCircle, Globe, Link2, Info, Sparkles } from 'lucide-react'
 import { usePlatformConfig } from '@/hooks/use-platform-config'
 import { useRestaurants } from '@/hooks/use-restaurants'
-import type { AdminUiFlags, CustomerUiFlags, ServiceFlags } from '@/lib/platform-config'
+import type { AdminUiFlags, CustomerUiFlags, ServiceFlags, MenuKey, CustomMenuItem } from '@/lib/platform-config'
 import {
   DEFAULT_SUPER_SETTINGS,
   readSuperSettings,
@@ -17,6 +17,14 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -89,6 +97,28 @@ const adminUiRows: { key: keyof AdminUiFlags; label: string; caption: string }[]
   },
 ]
 
+const MENU_ROWS: { key: MenuKey; label: string; caption: string }[] = [
+  { key: 'dashboard', label: 'Dashboard', caption: 'Home dashboard metrics' },
+  { key: 'tables', label: 'Tables', caption: 'Table layout, bookings, and digital spaces' },
+  { key: 'menu', label: 'Menu Catalog', caption: 'Dishes, categories, modifiers, and options' },
+  { key: 'orders', label: 'Orders Manager', caption: 'Order queue, KDS status, and checkouts' },
+  { key: 'integrations', label: 'Integrations', caption: 'External integrations (WhatsApp, SMS, Printer)' },
+  { key: 'pos', label: 'POS Terminal', caption: 'Fast counter billing interface' },
+  { key: 'kitchen', label: 'KDS View', caption: 'Kitchen display screen for chef' },
+  { key: 'qrDesigner', label: 'QR Designer', caption: 'QR code print template builder' },
+  { key: 'inventory', label: 'Inventory', caption: 'Recipes, stock levels, and supply tracking' },
+  { key: 'staff', label: 'Staff & Attendance', caption: 'Payroll, attendance logs, and staff profiles' },
+  { key: 'orderingCheckout', label: 'Ordering & checkout', caption: 'Payment configurations and checkout options' },
+  { key: 'customers', label: 'Customers', caption: 'Guest database and CRM lists' },
+  { key: 'aiInsights', label: 'AI Insights', caption: 'Advanced automated performance statistics' },
+  { key: 'shop', label: 'Hardware Shop', caption: 'Buy premium QR stands and thermal printers' },
+  { key: 'storeProfile', label: 'Store Profile', caption: 'Store timings, address, contacts, and logs' },
+  { key: 'support', label: 'Support Helpdesk', caption: 'Platform raise-a-ticket support' },
+  { key: 'billing', label: 'Subscription Billing', caption: 'SaaS plan billing and invoices' },
+  { key: 'settings', label: 'Appearance & Settings', caption: 'Admin themes, rails, and settings' },
+]
+
+
 function FlagRow({
   label,
   caption,
@@ -113,12 +143,61 @@ function FlagRow({
 
 /** Platform settings: tabs + dirty-state save footer (doc §6.6). */
 export function SuperSettingsPage() {
-  const { config, setFlag, reset } = usePlatformConfig()
+  const { config, setFlag, setMenusFlag, setCustomMenus, reset } = usePlatformConfig()
   const { restaurants, setStatus } = useRestaurants()
   const [draft, setDraft] = useState<SuperSettings>(() => readSuperSettings())
   const [dirty, setDirty] = useState(false)
   const [inviteName, setInviteName] = useState('')
   const [inviteEmail, setInviteEmail] = useState('')
+
+  const [customEditor, setCustomEditor] = useState<CustomMenuItem | null>(null)
+  const [isNewCustom, setIsNewCustom] = useState(false)
+
+  const openCustomEditor = (item?: CustomMenuItem) => {
+    if (item) {
+      setIsNewCustom(false)
+      setCustomEditor(structuredClone(item))
+    } else {
+      setIsNewCustom(true)
+      setCustomEditor({
+        id: `c_${Date.now().toString(36)}`,
+        label: '',
+        to: '',
+        icon: 'Link2',
+        enabled: true,
+      })
+    }
+  }
+
+  const saveCustomMenu = () => {
+    if (!customEditor) return
+    if (!customEditor.label.trim()) {
+      toast.error('Label is required')
+      return
+    }
+    if (!customEditor.to.trim()) {
+      toast.error('Target URL/Route is required')
+      return
+    }
+
+    const current = config.customMenus || []
+    let next: CustomMenuItem[]
+    if (isNewCustom) {
+      next = [...current, customEditor]
+    } else {
+      next = current.map((m) => (m.id === customEditor.id ? customEditor : m))
+    }
+    setCustomMenus(next)
+    setCustomEditor(null)
+    toast.success(isNewCustom ? 'Custom menu link added' : 'Custom menu link updated')
+  }
+
+  const deleteCustomMenu = (id: string) => {
+    const current = config.customMenus || []
+    const next = current.filter((m) => m.id !== id)
+    setCustomMenus(next)
+    toast.success('Custom menu link deleted')
+  }
 
   useEffect(() => {
     setDraft(readSuperSettings())
@@ -255,6 +334,101 @@ export function SuperSettingsPage() {
                   />
                 ))}
               </ul>
+
+              <div className="my-6 h-px bg-line" />
+
+              <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Standard Side Menu Access
+              </h4>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Toggle visibility and gate access to standard restaurant dashboard pages.
+              </p>
+              <ul className="mt-2 divide-y divide-line grid gap-x-6 sm:grid-cols-2">
+                {MENU_ROWS.map((row) => (
+                  <FlagRow
+                    key={row.key}
+                    label={row.label}
+                    caption={row.caption}
+                    checked={(config.menus as any)?.[row.key] ?? true}
+                    onChange={(v) => setMenusFlag(row.key, v)}
+                  />
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card className="max-w-[720px] rounded-card border-line shadow-card mt-6">
+            <CardContent className="p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-semibold">Custom dynamic menus</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Add new custom sidebar links dynamically to the restaurant admin portal.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 rounded-full"
+                  onClick={() => openCustomEditor()}
+                >
+                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Add link
+                </Button>
+              </div>
+
+              {(!config.customMenus || config.customMenus.length === 0) ? (
+                <div className="mt-6 text-center py-8 border border-dashed border-line rounded-2xl text-xs text-muted-foreground">
+                  No custom menu links added yet. Click "Add link" to configure one.
+                </div>
+              ) : (
+                <ul className="mt-4 divide-y divide-line border border-line rounded-2xl overflow-hidden bg-surface-muted/30">
+                  {config.customMenus.map((m) => (
+                    <li key={m.id} className="flex items-center justify-between gap-4 p-4">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-brand-tint text-brand">
+                          {(() => {
+                            if (m.icon === 'Sparkles') return <Sparkles className="h-4 w-4" />
+                            if (m.icon === 'Globe') return <Globe className="h-4 w-4" />
+                            if (m.icon === 'HelpCircle') return <HelpCircle className="h-4 w-4" />
+                            if (m.icon === 'Info') return <Info className="h-4 w-4" />
+                            return <Link2 className="h-4 w-4" />
+                          })()}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium truncate">{m.label}</p>
+                          <code className="block text-[10px] text-muted-foreground truncate">{m.to}</code>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Switch
+                          checked={m.enabled}
+                          onCheckedChange={(v) => {
+                            const next = config.customMenus.map((c) => c.id === m.id ? { ...c, enabled: v } : c)
+                            setCustomMenus(next)
+                            toast.success(v ? 'Link enabled' : 'Link disabled')
+                          }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full"
+                          onClick={() => openCustomEditor(m)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-full text-destructive hover:text-destructive"
+                          onClick={() => deleteCustomMenu(m.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -540,6 +714,67 @@ export function SuperSettingsPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {customEditor && (
+        <Dialog open={!!customEditor} onOpenChange={(v: boolean) => !v && setCustomEditor(null)}>
+          <DialogContent className="sm:max-w-md rounded-2xl">
+            <DialogHeader>
+              <DialogTitle>{isNewCustom ? 'Add custom menu link' : 'Edit custom menu link'}</DialogTitle>
+              <DialogDescription>
+                Configure a custom sidebar navigation item for the restaurant portals.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="c-label">Label</Label>
+                <Input
+                  id="c-label"
+                  placeholder="e.g. Help Center"
+                  value={customEditor.label}
+                  onChange={(e) => setCustomEditor({ ...customEditor, label: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="c-to">Target URL / Route</Label>
+                <Input
+                  id="c-to"
+                  placeholder="e.g. https://support.myrestaurant.com"
+                  value={customEditor.to}
+                  onChange={(e) => setCustomEditor({ ...customEditor, to: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Icon</Label>
+                <Select
+                  value={customEditor.icon}
+                  onValueChange={(v) => setCustomEditor({ ...customEditor, icon: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Link2">Link icon</SelectItem>
+                    <SelectItem value="Globe">Globe icon</SelectItem>
+                    <SelectItem value="Sparkles">Sparkles icon</SelectItem>
+                    <SelectItem value="HelpCircle">Help icon</SelectItem>
+                    <SelectItem value="Info">Info icon</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setCustomEditor(null)} className="rounded-xl">
+                Cancel
+              </Button>
+              <Button onClick={saveCustomMenu} className="rounded-xl">
+                Save link
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {dirty && (
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface/95 backdrop-blur">

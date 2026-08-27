@@ -24,19 +24,47 @@ export function SideMenuControl() {
   const { config, isHidden, setHidden, move, reset } = useNavConfig()
   const industryHidden = new Set(industry.navHints.hide)
 
+  const PATH_TO_MENU_KEY: Record<string, string> = {
+    '/dashboard': 'dashboard',
+    '/tables': 'tables',
+    '/menu': 'menu',
+    '/orders': 'orders',
+    '/integrations': 'integrations',
+    '/pos': 'pos',
+    '/kitchen': 'kitchen',
+    '/qr': 'qrDesigner',
+    '/inventory': 'inventory',
+    '/staff': 'staff',
+    '/venue-setup': 'orderingCheckout',
+    '/customers': 'customers',
+    '/ai': 'aiInsights',
+    '/shop': 'shop',
+    '/profile': 'storeProfile',
+    '/support': 'support',
+    '/billing': 'billing',
+    '/settings': 'settings',
+  }
+
   // Platform / industry packs remove an item entirely — it isn't the owner's to
   // control, so it doesn't appear in this list at all.
   const sections = restaurantNav
     .map((section) => ({
       ...section,
       items: section.items
-        .filter(
-          (item) =>
-            !industryHidden.has(item.to) &&
-            !(item.feature != null && industry.featureDefaults[item.feature] === false) &&
+        .filter((item) => {
+          if (industryHidden.has(item.to)) return false
+          if (item.feature != null && industry.featureDefaults[item.feature] === false) return false
+          
+          const key = PATH_TO_MENU_KEY[item.to]
+          if (key && (platform.menus as any)?.[key] === false) {
+            return false
+          }
+
+          return (
             (item.to !== '/kitchen' || platform.service.kitchenDisplay) &&
-            (item.to !== '/reports' || platform.adminUi.showReports),
-        )
+            (item.to !== '/reports' || platform.adminUi.showReports)
+          )
+        })
         .map((item) => {
           if (item.to === '/tables') return { ...item, label: copy.spaces }
           if (item.to === '/menu') return { ...item, label: copy.catalog }

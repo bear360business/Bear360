@@ -65,6 +65,16 @@ import { AttendancePage } from '@/features/admin/staff/AttendancePage'
 import { PayrollPage } from '@/features/admin/staff/PayrollPage'
 import { ModuleComingSoon } from '@/features/admin/ModuleComingSoon'
 import { FeatureGate } from '@/components/app/FeatureGate'
+import { usePlatformConfig } from '@/hooks/use-platform-config'
+import { FeatureDisabled } from '@/components/app/FeatureDisabled'
+import { type MenuKey } from '@/lib/platform-config'
+
+function PlatformMenuGate({ menuKey, children }: { menuKey: MenuKey; children: React.ReactNode }) {
+  const { config } = usePlatformConfig()
+  const enabled = (config.menus as any)?.[menuKey] ?? true
+  return enabled ? <>{children}</> : <FeatureDisabled />
+}
+
 
 import { TableLandingPage } from '@/features/customer/landing/TableLandingPage'
 import { CustomerMenuPage } from '@/features/customer/menu/CustomerMenuPage'
@@ -128,14 +138,16 @@ export const router = createBrowserRouter([
       {
         element: <StaffRouteGuard />,
         children: [
-      { path: '/dashboard', element: <DashboardPage /> },
+      { path: '/dashboard', element: <PlatformMenuGate menuKey="dashboard"><DashboardPage /></PlatformMenuGate> },
       { path: '/staff-access', element: <StaffNoAccessPage /> },
       {
         path: '/tables',
         element: (
-          <FeatureGate feature="tables">
-            <TablesShell />
-          </FeatureGate>
+          <PlatformMenuGate menuKey="tables">
+            <FeatureGate feature="tables">
+              <TablesShell />
+            </FeatureGate>
+          </PlatformMenuGate>
         ),
         children: [
           { index: true, element: <TablesPage /> },
@@ -144,36 +156,44 @@ export const router = createBrowserRouter([
       },
       {
         path: '/menu',
-        element: <MenuShell />,
+        element: (
+          <PlatformMenuGate menuKey="menu">
+            <MenuShell />
+          </PlatformMenuGate>
+        ),
         children: [
           { index: true, element: <MenuPage /> },
           { path: 'categories', element: <MenuCategoriesPage /> },
           { path: 'appearance', element: <MenuAppearancePage /> },
         ],
       },
-      { path: '/orders', element: <OrdersPage /> },
-      { path: '/integrations', element: <IntegrationsPage /> },
-      { path: '/qr', element: <QrDesignerPage /> },
-      { path: '/customers', element: <CustomersPage /> },
+      { path: '/orders', element: <PlatformMenuGate menuKey="orders"><OrdersPage /></PlatformMenuGate> },
+      { path: '/integrations', element: <PlatformMenuGate menuKey="integrations"><IntegrationsPage /></PlatformMenuGate> },
+      { path: '/qr', element: <PlatformMenuGate menuKey="qrDesigner"><QrDesignerPage /></PlatformMenuGate> },
+      { path: '/customers', element: <PlatformMenuGate menuKey="customers"><CustomersPage /></PlatformMenuGate> },
       { path: '/finance', element: <Navigate to="/dashboard?tab=finance" replace /> },
-      { path: '/shop', element: <ShopPage /> },
-      { path: '/venue-setup', element: <VenueSetupPage /> },
-      { path: '/profile', element: <ProfileSettingsPage /> },
+      { path: '/shop', element: <PlatformMenuGate menuKey="shop"><ShopPage /></PlatformMenuGate> },
+      { path: '/venue-setup', element: <PlatformMenuGate menuKey="orderingCheckout"><VenueSetupPage /></PlatformMenuGate> },
+      { path: '/profile', element: <PlatformMenuGate menuKey="storeProfile"><ProfileSettingsPage /></PlatformMenuGate> },
       // Plan-gated routes never 404 — FeatureGate renders the upgrade page.
       {
         path: '/pos',
         element: (
-          <FeatureGate feature="pos">
-            <PosPage />
-          </FeatureGate>
+          <PlatformMenuGate menuKey="pos">
+            <FeatureGate feature="pos">
+              <PosPage />
+            </FeatureGate>
+          </PlatformMenuGate>
         ),
       },
       {
         path: '/inventory',
         element: (
-          <FeatureGate feature="inventory">
-            <InventoryShell />
-          </FeatureGate>
+          <PlatformMenuGate menuKey="inventory">
+            <FeatureGate feature="inventory">
+              <InventoryShell />
+            </FeatureGate>
+          </PlatformMenuGate>
         ),
         children: [
           { index: true, element: <InventoryPage /> },
@@ -186,9 +206,11 @@ export const router = createBrowserRouter([
       {
         path: '/staff',
         element: (
-          <FeatureGate feature="staff">
-            <StaffShell />
-          </FeatureGate>
+          <PlatformMenuGate menuKey="staff">
+            <FeatureGate feature="staff">
+              <StaffShell />
+            </FeatureGate>
+          </PlatformMenuGate>
         ),
         children: [
           { index: true, element: <StaffPage /> },
@@ -202,27 +224,33 @@ export const router = createBrowserRouter([
       {
         path: '/ai',
         element: (
-          <FeatureGate feature="ai">
-            <ModuleComingSoon
-              title="AI Insights"
-              summary="A manager that watches your numbers around the clock: stock-out predictions, menu opportunities, wastage anomalies and staffing recommendations."
-              screens={['Insight feed', 'Ask bar', 'Dashboard insight strip']}
-              phase="build phase 8 — it needs 14 days of inventory and staff data first"
-            />
-          </FeatureGate>
+          <PlatformMenuGate menuKey="aiInsights">
+            <FeatureGate feature="ai">
+              <ModuleComingSoon
+                title="AI Insights"
+                summary="A manager that watches your numbers around the clock: stock-out predictions, menu opportunities, wastage anomalies and staffing recommendations."
+                screens={['Insight feed', 'Ask bar', 'Dashboard insight strip']}
+                phase="build phase 8 — it needs 14 days of inventory and staff data first"
+              />
+            </FeatureGate>
+          </PlatformMenuGate>
         ),
       },
       { path: '/reports', element: <Navigate to="/dashboard?tab=reports" replace /> },
-      { path: '/support', element: <SupportPage /> },
-      { path: '/billing', element: <BillingPage /> },
-      { path: '/settings', element: <SettingsPage /> },
+      { path: '/support', element: <PlatformMenuGate menuKey="support"><SupportPage /></PlatformMenuGate> },
+      { path: '/billing', element: <PlatformMenuGate menuKey="billing"><BillingPage /></PlatformMenuGate> },
+      { path: '/settings', element: <PlatformMenuGate menuKey="settings"><SettingsPage /></PlatformMenuGate> },
         ],
       },
     ],
   },
   {
     path: '/kitchen',
-    element: <KitchenLayout />,
+    element: (
+      <PlatformMenuGate menuKey="kitchen">
+        <KitchenLayout />
+      </PlatformMenuGate>
+    ),
     children: [{ index: true, element: <KitchenPage /> }],
   },
   {

@@ -39,6 +39,7 @@ import {
 } from '@/lib/venue-scope'
 import { reportApiError } from '@/lib/api-error'
 import { useAuthTick } from '@/hooks/use-auth-tick'
+import { isStoreSetupPending } from '@/features/admin/onboarding/store-setup'
 
 const ING_KEY = 'bearqr:ingredients'
 const PUR_KEY = 'bearqr:purchases'
@@ -166,7 +167,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   }, [venueId])
 
   useEffect(() => {
-    if (mock || !getAccessToken()) return
+    if (mock || !getAccessToken() || isStoreSetupPending()) return
     let cancelled = false
     void Promise.all([
       apiListIngredients(venueId),

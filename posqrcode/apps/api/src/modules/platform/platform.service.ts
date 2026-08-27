@@ -25,11 +25,10 @@ export class PlatformService {
     return (row.flags ?? {}) as Record<string, unknown>
   }
 
-  /** Guest-safe UI flags (no secrets). */
   async getPublicUiFlags() {
     const row = await this.prisma.platformConfig.findUnique({ where: { id: CONFIG_ID } })
     const flags = (row?.flags ?? {}) as Record<string, unknown>
-    const ui = (flags.platformUi ?? {}) as Record<string, Record<string, boolean>>
+    const ui = (flags.platformUi ?? {}) as Record<string, any>
     return {
       service: {
         onlineOrdering: ui.service?.onlineOrdering ?? true,
@@ -47,6 +46,8 @@ export class PlatformService {
         showRevenueStats: ui.adminUi?.showRevenueStats ?? true,
         showActivityFeed: ui.adminUi?.showActivityFeed ?? true,
       },
+      menus: ui.menus ?? {},
+      customMenus: ui.customMenus ?? [],
     }
   }
 

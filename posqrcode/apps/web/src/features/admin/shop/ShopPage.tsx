@@ -25,7 +25,7 @@ export function ShopPage() {
     <>
       <PageHeader
         title="Shop"
-        caption="Purchase premium items and QR stands for your restaurant."
+        caption="Purchase premium items and QR stands for your restaurant. (This setting is controlled by admin)"
       />
 
       <div className="mb-4 flex w-fit gap-1 rounded-full bg-surface-muted p-1">

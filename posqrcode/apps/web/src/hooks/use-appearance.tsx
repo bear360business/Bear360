@@ -30,6 +30,7 @@ import {
 } from '@/lib/venue-scope'
 import { reportApiError } from '@/lib/api-error'
 import { useAuthTick } from '@/hooks/use-auth-tick'
+import { isStoreSetupPending } from '@/features/admin/onboarding/store-setup'
 
 interface AppearanceContextValue {
   appearance: Appearance
@@ -227,7 +228,7 @@ export function AppearanceProvider({ children }: { children: ReactNode }) {
   )
 
   useEffect(() => {
-    if (mock || !getAccessToken() || !venueId) return
+    if (mock || !getAccessToken() || !venueId || isStoreSetupPending()) return
     let cancelled = false
     void apiGetVenueData<Appearance>(venueId, 'appearance')
       .then((row) => {

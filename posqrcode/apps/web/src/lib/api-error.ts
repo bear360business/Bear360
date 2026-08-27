@@ -1,8 +1,23 @@
 import { toast } from 'sonner'
 import { ApiClientError } from '@/lib/api-client'
+import { isStoreSetupPending } from '@/features/admin/onboarding/store-setup'
 
 /** Surface API failures so optimistic UI does not hide server errors. */
 export function reportApiError(err: unknown, fallback = 'Could not save — try again') {
+  if (err instanceof ApiClientError) {
+    const pathname = typeof window !== 'undefined' ? window.location.pathname : ''
+    const isCustomerRoute = pathname.startsWith('/r/')
+    const isMarketingRoute =
+      pathname === '/' || pathname === '/contact' || pathname === '/portals' || pathname === '/qr-test'
+    const shouldSilence = isStoreSetupPending() || isCustomerRoute || isMarketingRoute
+    if (
+      shouldSilence &&
+      (err.status === 401 || err.status === 403 || err.code === 'TENANT_FORBIDDEN')
+    ) {
+      return
+    }
+  }
+
   const message =
     err instanceof ApiClientError
       ? err.message
@@ -18,3 +33,4 @@ export function reportApiError(err: unknown, fallback = 'Could not save — try 
 export function apiCatch(err: unknown, fallback?: string) {
   reportApiError(err, fallback)
 }
+

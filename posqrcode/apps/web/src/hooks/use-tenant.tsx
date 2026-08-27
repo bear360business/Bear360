@@ -35,6 +35,7 @@ import {
   type TenantConfig,
   type TenantStatus,
 } from '@/lib/tenant'
+import { isStoreSetupPending } from '@/features/admin/onboarding/store-setup'
 import { reportApiError } from '@/lib/api-error'
 
 const RESTAURANTS_STORAGE_KEY = 'bearqr:restaurants'
@@ -111,10 +112,10 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (mock) return
+    if (mock || isStoreSetupPending()) return
     let cancelled = false
     const hydrate = () => {
-      if (!getAccessToken()) return
+      if (!getAccessToken() || isStoreSetupPending()) return
       const restaurantId = getCurrentRestaurantId()
       if (!restaurantId) return
       void apiGetEntitlements(restaurantId)

@@ -60,23 +60,30 @@ export class CatalogService {
 
   async upsertCategory(user: JwtPayload, restaurantId: string, input: MenuCategoryInput) {
     this.tenants.assertAccess(user, restaurantId)
-    if (input.id) {
-      return this.prisma.menuCategory.update({
-        where: { id: input.id },
-        data: {
-          name: input.name,
-          emoji: input.emoji ?? '🍽️',
-          sortOrder: input.sortOrder ?? 0,
-        },
-      })
+
+    const data = {
+      name: input.name,
+      emoji: input.emoji ?? '🍽️',
+      sortOrder: input.sortOrder ?? 0,
     }
+
+    // If an id is provided AND a record actually exists → update it.
+    // Otherwise → create a brand-new record (ignore any client temp id).
+    if (input.id) {
+      const existing = await this.prisma.menuCategory.findFirst({
+        where: { id: input.id, restaurantId },
+      })
+      if (existing) {
+        return this.prisma.menuCategory.update({
+          where: { id: input.id },
+          data,
+        })
+      }
+    }
+
+    // New record — let the DB generate the id.
     return this.prisma.menuCategory.create({
-      data: {
-        restaurantId,
-        name: input.name,
-        emoji: input.emoji ?? '🍽️',
-        sortOrder: input.sortOrder ?? 0,
-      },
+      data: { restaurantId, ...data },
     })
   }
 

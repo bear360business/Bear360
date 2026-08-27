@@ -18,6 +18,8 @@ import {
   PLATFORM_CONFIG_STORAGE_KEY,
   mergePlatformConfig,
   type PlatformConfig,
+  type MenuFlags,
+  type CustomMenuItem,
 } from '@/lib/platform-config'
 import { useMockData } from '@/lib/runtime-config'
 import { reportApiError } from '@/lib/api-error'
@@ -30,6 +32,8 @@ interface PlatformConfigContextValue {
     key: K,
     value: boolean,
   ) => void
+  setMenusFlag: (key: keyof MenuFlags, value: boolean) => void
+  setCustomMenus: (value: CustomMenuItem[]) => void
   reset: () => void
 }
 
@@ -114,6 +118,34 @@ export function PlatformConfigProvider({ children }: { children: ReactNode }) {
     [mock],
   )
 
+  const setMenusFlag = useCallback(
+    (key: keyof MenuFlags, value: boolean) => {
+      setConfig((prev) => {
+        const next = { ...prev, menus: { ...prev.menus, [key]: value } }
+        writeStored(next)
+        if (!mock && isSuperAdmin()) {
+          void apiPutPlatformConfig({ platformUi: next }).catch((err) => reportApiError(err))
+        }
+        return next
+      })
+    },
+    [mock],
+  )
+
+  const setCustomMenus = useCallback(
+    (value: CustomMenuItem[]) => {
+      setConfig((prev) => {
+        const next = { ...prev, customMenus: value }
+        writeStored(next)
+        if (!mock && isSuperAdmin()) {
+          void apiPutPlatformConfig({ platformUi: next }).catch((err) => reportApiError(err))
+        }
+        return next
+      })
+    },
+    [mock],
+  )
+
   const reset = useCallback(() => {
     writeStored(DEFAULT_PLATFORM_CONFIG)
     setConfig(DEFAULT_PLATFORM_CONFIG)
@@ -123,7 +155,7 @@ export function PlatformConfigProvider({ children }: { children: ReactNode }) {
   }, [mock])
 
   return (
-    <PlatformConfigContext.Provider value={{ config, setFlag, reset }}>
+    <PlatformConfigContext.Provider value={{ config, setFlag, setMenusFlag, setCustomMenus, reset }}>
       {children}
     </PlatformConfigContext.Provider>
   )
