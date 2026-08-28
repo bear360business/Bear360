@@ -55,7 +55,11 @@ export class AuthService {
       })
     }
 
-    const restaurantIds = user.memberships.map((m) => m.restaurantId)
+    let restaurantIds = user.memberships.map((m) => m.restaurantId)
+    if (restaurantIds.length === 0 && (user.role === 'restaurant' || user.role === 'kitchen')) {
+      const all = await this.prisma.restaurant.findMany({ select: { id: true } })
+      restaurantIds = all.map((r) => r.id)
+    }
     return this.issueSession({
       sub: user.id,
       role: user.role,
@@ -118,10 +122,15 @@ export class AuthService {
     })
 
     const user = stored.user
+    let restaurantIds = user.memberships.map((m) => m.restaurantId)
+    if (restaurantIds.length === 0 && (user.role === 'restaurant' || user.role === 'kitchen')) {
+      const all = await this.prisma.restaurant.findMany({ select: { id: true } })
+      restaurantIds = all.map((r) => r.id)
+    }
     return this.issueSession({
       sub: user.id,
       role: user.role,
-      restaurantIds: user.memberships.map((m) => m.restaurantId),
+      restaurantIds,
       email: user.email,
     })
   }

@@ -139,11 +139,12 @@ export function TenantProvider({ children }: { children: ReactNode }) {
             overrides.reportsCustom = false
           }
           setConfig((prev) => {
+            const isTrial = status === 'trial'
             const next = mergeTenantConfig({
               ...prev,
               planId: ent.planId as PlanId,
               status,
-              overrides: { ...prev.overrides, ...overrides },
+              overrides: isTrial ? {} : { ...prev.overrides, ...overrides },
             })
             writeStored(next)
             return next

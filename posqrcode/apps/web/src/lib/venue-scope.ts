@@ -8,7 +8,12 @@ export function venueKey(base: string, restaurantId: string): string {
   return `${base}:${restaurantId}`
 }
 
-export function notifyDataVenueChanged() {
+let lastNotifiedVenueId = ''
+
+export function notifyDataVenueChanged(venueId?: string) {
+  const current = venueId ?? resolveDataVenueId()
+  if (current === lastNotifiedVenueId) return
+  lastNotifiedVenueId = current
   try {
     window.dispatchEvent(new Event(DATA_VENUE_EVENT))
   } catch {

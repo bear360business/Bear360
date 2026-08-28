@@ -11,11 +11,28 @@ export function apiPutPlatformConfig(patch: Record<string, unknown>) {
   })
 }
 
-export function apiGetVenueData<T>(restaurantId: string, bag: string) {
-  return apiRequest<T>(`/restaurants/${restaurantId}/data/${bag}`)
+const venueDataCache = new Map<string, { promise: Promise<any>; timestamp: number }>()
+
+export function apiGetVenueData<T>(restaurantId: string, bag: string): Promise<T> {
+  const key = `${restaurantId}:${bag}`
+  const now = Date.now()
+  const cached = venueDataCache.get(key)
+  if (cached && now - cached.timestamp < 3000) {
+    return cached.promise as Promise<T>
+  }
+
+  const promise = apiRequest<T>(`/restaurants/${restaurantId}/data/${bag}`).catch((err) => {
+    venueDataCache.delete(key)
+    throw err
+  })
+
+  venueDataCache.set(key, { promise, timestamp: now })
+  return promise
 }
 
 export function apiPutVenueData<T>(restaurantId: string, bag: string, value: T) {
+  const key = `${restaurantId}:${bag}`
+  venueDataCache.delete(key)
   return apiRequest<T>(`/restaurants/${restaurantId}/data/${bag}`, {
     method: 'PUT',
     body: value,

@@ -318,22 +318,61 @@ function Upload({
   return (
     <div>
       <p className="mb-1.5 text-sm font-medium">{label}</p>
-      <label className="flex min-h-[120px] cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-line bg-surface-muted/40 px-3 py-6 text-center">
-        {value ? (
-          <img src={value} alt="" className="max-h-20 rounded object-contain" />
-        ) : (
-          <>
-            <CloudUpload className="h-7 w-7 text-muted-foreground" />
-            <p className="mt-2 text-xs text-muted-foreground">Click or paste image URL below</p>
-          </>
-        )}
-        <Input
-          className="mt-3"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="https://…"
-        />
-      </label>
+      <div className="space-y-3">
+        <label className="group relative flex min-h-[140px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-line bg-surface-muted/30 px-4 py-6 text-center transition-colors hover:border-brand hover:bg-brand-tint/20">
+          <input
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              const reader = new FileReader()
+              reader.onload = () => {
+                const result = String(reader.result)
+                onChange(result)
+                toast.success(`${label} uploaded`)
+              }
+              reader.readAsDataURL(file)
+              e.target.value = ''
+            }}
+          />
+          {value ? (
+            <div className="relative flex flex-col items-center gap-2">
+              <img src={value} alt="" className="max-h-24 max-w-full rounded-lg object-contain shadow-sm" />
+              <p className="text-[11px] font-medium text-muted-foreground group-hover:text-brand">
+                Click to replace file from device
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-1.5">
+              <CloudUpload className="h-8 w-8 text-muted-foreground transition-colors group-hover:text-brand" />
+              <p className="text-xs font-semibold text-foreground">Click to upload image file</p>
+              <p className="text-[11px] text-muted-foreground">PNG, JPG, WEBP or SVG file</p>
+            </div>
+          )}
+        </label>
+
+        <div className="flex items-center gap-2">
+          <Input
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder="Or paste image URL (https://…)"
+            className="text-xs"
+          />
+          {value && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 text-xs text-destructive hover:text-destructive"
+              onClick={() => onChange('')}
+            >
+              Clear
+            </Button>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -36,7 +36,7 @@ export function UpgradeProvider({ children }: { children: ReactNode }) {
   return (
     <UpgradeContext.Provider value={{ openUpgrade }}>
       {children}
-      <UpgradeDrawer feature={feature} onOpenChange={(open) => !open && setFeature(null)} />
+      {feature && <UpgradeDrawer feature={feature} onOpenChange={(open) => !open && setFeature(null)} />}
     </UpgradeContext.Provider>
   )
 }

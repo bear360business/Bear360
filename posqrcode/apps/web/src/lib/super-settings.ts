@@ -27,8 +27,36 @@ export type SuperPlatformIdentity = {
   logoDataUrl?: string
 }
 
+export type SuperFreeTrialPolicy = {
+  defaultTrialDays: '7' | '14' | '30' | '60'
+  autoActivateOnSignup: boolean
+  accessLevel: 'full' | 'custom'
+  trialFeatures: {
+    qrOrdering: boolean
+    pos: boolean
+    kitchen: boolean
+    tables: boolean
+    inventory: boolean
+    staff: boolean
+    scheduler: boolean
+    payroll: boolean
+    reportsBasic: boolean
+    reportsAdvanced: boolean
+    reportsCustom: boolean
+    ai: boolean
+    multiBranch: boolean
+    export: boolean
+  }
+  limits: {
+    maxTables: number | null
+    maxMenuItems: number | null
+    maxOrdersPerMonth: number | null
+    maxStaffSeats: number | null
+  }
+}
+
 export type SuperBillingDefaults = {
-  trialDays: '7' | '14' | '30'
+  trialDays: '7' | '14' | '30' | '60'
   currency: 'inr' | 'usd' | 'eur'
 }
 
@@ -36,6 +64,7 @@ export type SuperSettings = {
   identity: SuperPlatformIdentity
   team: SuperTeamMember[]
   billing: SuperBillingDefaults
+  freeTrialPolicy: SuperFreeTrialPolicy
   notifications: SuperNotifPrefs
 }
 
@@ -52,6 +81,33 @@ export const DEFAULT_SUPER_SETTINGS: SuperSettings = {
   },
   team: DEFAULT_TEAM,
   billing: { trialDays: '14', currency: 'inr' },
+  freeTrialPolicy: {
+    defaultTrialDays: '14',
+    autoActivateOnSignup: true,
+    accessLevel: 'full',
+    trialFeatures: {
+      qrOrdering: true,
+      pos: true,
+      kitchen: true,
+      tables: true,
+      inventory: true,
+      staff: true,
+      scheduler: true,
+      payroll: true,
+      reportsBasic: true,
+      reportsAdvanced: true,
+      reportsCustom: true,
+      ai: true,
+      multiBranch: true,
+      export: true,
+    },
+    limits: {
+      maxTables: null,
+      maxMenuItems: null,
+      maxOrdersPerMonth: null,
+      maxStaffSeats: null,
+    },
+  },
   notifications: {
     'new-restaurant': true,
     'trial-expiry': true,
@@ -80,6 +136,18 @@ export function readSuperSettings(): SuperSettings {
           ? parsed.team
           : structuredClone(DEFAULT_TEAM),
       billing: { ...DEFAULT_SUPER_SETTINGS.billing, ...parsed.billing },
+      freeTrialPolicy: {
+        ...DEFAULT_SUPER_SETTINGS.freeTrialPolicy,
+        ...parsed.freeTrialPolicy,
+        trialFeatures: {
+          ...DEFAULT_SUPER_SETTINGS.freeTrialPolicy.trialFeatures,
+          ...parsed.freeTrialPolicy?.trialFeatures,
+        },
+        limits: {
+          ...DEFAULT_SUPER_SETTINGS.freeTrialPolicy.limits,
+          ...parsed.freeTrialPolicy?.limits,
+        },
+      },
       notifications: {
         ...DEFAULT_SUPER_SETTINGS.notifications,
         ...parsed.notifications,

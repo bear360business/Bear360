@@ -55,6 +55,7 @@ export function RestaurantsPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleteTarget, setDeleteTarget] = useState<Restaurant | null>(null)
   const [viewTarget, setViewTarget] = useState<Restaurant | null>(null)
+  const [manageTarget, setManageTarget] = useState<Restaurant | null>(null)
 
   const toggleVenueStatus = (r: Restaurant) => {
     const suspending = r.status !== 'suspended'
@@ -345,6 +346,9 @@ export function RestaurantsPage() {
                             <DropdownMenuItem onSelect={() => setViewTarget(r)}>
                               View Info
                             </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setManageTarget(r)}>
+                              Manage Features & Trial
+                            </DropdownMenuItem>
                             <DropdownMenuItem asChild>
                               <Link to={`/super/restaurants/${r.id}/edit`}>Edit</Link>
                             </DropdownMenuItem>
@@ -500,6 +504,102 @@ export function RestaurantsPage() {
           <DialogFooter>
             <Button className="rounded-full" onClick={() => setViewTarget(null)}>
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={manageTarget !== null} onOpenChange={(open) => !open && setManageTarget(null)}>
+        <DialogContent className="max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Store className="h-5 w-5 text-brand" />
+              Manage Trial & Features: {manageTarget?.name}
+            </DialogTitle>
+            <DialogDescription>
+              Super Admin controls for store status, trial duration, and plan tier.
+            </DialogDescription>
+          </DialogHeader>
+
+          {manageTarget && (
+            <div className="space-y-4 py-3">
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</label>
+                <Select
+                  value={manageTarget.status}
+                  onValueChange={(v) => {
+                    setStatus(manageTarget.id, v as any)
+                    setManageTarget((prev) => (prev ? { ...prev, status: v as any } : null))
+                    toast.success(`Status updated to ${v}`)
+                  }}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="trial">Free Trial (Full Access)</SelectItem>
+                    <SelectItem value="active">Active Subscription</SelectItem>
+                    <SelectItem value="suspended">Suspended</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Subscription Plan</label>
+                <Select
+                  value={manageTarget.planId}
+                  onValueChange={(v) => {
+                    setManageTarget((prev) => (prev ? { ...prev, planId: v as any } : null))
+                    toast.success(`Plan updated to ${v}`)
+                  }}
+                >
+                  <SelectTrigger className="rounded-xl">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="basic">Basic Plan (Single Counter)</SelectItem>
+                    <SelectItem value="professional">Professional Plan (Full Service)</SelectItem>
+                    <SelectItem value="enterprise">Enterprise Plan (Multi-Branch)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-xl border border-line bg-surface-muted/40 p-4 space-y-2">
+                <p className="text-xs font-semibold">Free Trial Quick Actions</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full text-xs"
+                    onClick={() => {
+                      setStatus(manageTarget.id, 'trial')
+                      setManageTarget((prev) => (prev ? { ...prev, status: 'trial' } : null))
+                      toast.success('Extended Free Trial (+14 days)')
+                    }}
+                  >
+                    +14 Days Trial
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="rounded-full text-xs"
+                    onClick={() => {
+                      setStatus(manageTarget.id, 'trial')
+                      setManageTarget((prev) => (prev ? { ...prev, status: 'trial' } : null))
+                      toast.success('Extended Free Trial (+30 days)')
+                    }}
+                  >
+                    +30 Days Trial
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button className="rounded-xl" onClick={() => setManageTarget(null)}>
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>

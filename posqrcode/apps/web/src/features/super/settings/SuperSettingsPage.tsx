@@ -260,6 +260,7 @@ export function SuperSettingsPage() {
       <Tabs defaultValue="controls">
         <TabsList className="mb-6 w-full justify-start overflow-x-auto sm:w-auto">
           <TabsTrigger value="controls">Platform controls</TabsTrigger>
+          <TabsTrigger value="freetrial">Free Trial & Free Version</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="team">Team</TabsTrigger>
           <TabsTrigger value="billing">Billing defaults</TabsTrigger>
@@ -429,6 +430,144 @@ export function SuperSettingsPage() {
                   ))}
                 </ul>
               )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="freetrial">
+          <Card className="max-w-[720px] rounded-card border-line shadow-card">
+            <CardContent className="p-8">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-semibold">Free Version & Free Trial Controls</h3>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Super Admin master policy for default free trial access, signup behavior, and feature matrix.
+                  </p>
+                </div>
+                <span className="flex h-8 items-center gap-1.5 rounded-full bg-brand-tint px-3 text-xs font-semibold text-brand">
+                  <Sparkles className="h-3.5 w-3.5" /> Admin Controlled
+                </span>
+              </div>
+
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Default Free Trial Duration</Label>
+                  <Select
+                    value={draft.freeTrialPolicy?.defaultTrialDays ?? '14'}
+                    onValueChange={(v) =>
+                      patch((prev) => ({
+                        ...prev,
+                        freeTrialPolicy: {
+                          ...prev.freeTrialPolicy,
+                          defaultTrialDays: v as any,
+                        },
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="7">7 Days Free Trial</SelectItem>
+                      <SelectItem value="14">14 Days Free Trial (Recommended)</SelectItem>
+                      <SelectItem value="30">30 Days Free Trial</SelectItem>
+                      <SelectItem value="60">60 Days Free Trial</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Trial Access Mode</Label>
+                  <Select
+                    value={draft.freeTrialPolicy?.accessLevel ?? 'full'}
+                    onValueChange={(v) =>
+                      patch((prev) => ({
+                        ...prev,
+                        freeTrialPolicy: {
+                          ...prev.freeTrialPolicy,
+                          accessLevel: v as any,
+                        },
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="full">Full Access (All Features Unlocked)</SelectItem>
+                      <SelectItem value="custom">Custom Controlled Matrix</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="mt-6 flex items-center justify-between gap-4 rounded-xl border border-line p-4">
+                <div>
+                  <p className="text-sm font-medium">Auto-Activate Free Trial on Signup</p>
+                  <p className="text-xs text-muted-foreground">
+                    New store signups automatically start in Free Trial mode with full menu access.
+                  </p>
+                </div>
+                <Switch
+                  checked={draft.freeTrialPolicy?.autoActivateOnSignup ?? true}
+                  onCheckedChange={(v) =>
+                    patch((prev) => ({
+                      ...prev,
+                      freeTrialPolicy: {
+                        ...prev.freeTrialPolicy,
+                        autoActivateOnSignup: v,
+                      },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="my-6 h-px bg-line" />
+
+              <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Free Trial Feature Access Matrix
+              </h4>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Select which modules and menus are enabled during the free trial period.
+              </p>
+
+              <ul className="mt-3 divide-y divide-line grid gap-x-6 sm:grid-cols-2">
+                {[
+                  { key: 'qrOrdering', label: 'QR Ordering & Digital Menu' },
+                  { key: 'pos', label: 'POS Billing Terminal' },
+                  { key: 'kitchen', label: 'Kitchen Display Screen (KDS)' },
+                  { key: 'tables', label: 'Tables & Digital Floor Plan' },
+                  { key: 'inventory', label: 'Inventory & Recipe Tracking' },
+                  { key: 'staff', label: 'Staff Roles & Attendance' },
+                  { key: 'scheduler', label: 'Shift Roster & Scheduling' },
+                  { key: 'payroll', label: 'Payroll & Compensation Summary' },
+                  { key: 'reportsBasic', label: 'Basic Sales Reports' },
+                  { key: 'reportsAdvanced', label: 'Advanced Profit & Labour Analytics' },
+                  { key: 'reportsCustom', label: 'Custom Report Builder' },
+                  { key: 'ai', label: 'AI Manager Insights' },
+                  { key: 'multiBranch', label: 'Multi-Branch Management' },
+                  { key: 'export', label: 'Data Export (CSV/PDF)' },
+                ].map((item) => (
+                  <FlagRow
+                    key={item.key}
+                    label={item.label}
+                    caption="Enable for Free Trial venues"
+                    checked={draft.freeTrialPolicy?.trialFeatures?.[item.key as keyof typeof draft.freeTrialPolicy.trialFeatures] ?? true}
+                    onChange={(v) =>
+                      patch((prev) => ({
+                        ...prev,
+                        freeTrialPolicy: {
+                          ...prev.freeTrialPolicy,
+                          trialFeatures: {
+                            ...prev.freeTrialPolicy?.trialFeatures,
+                            [item.key]: v,
+                          },
+                        },
+                      }))
+                    }
+                  />
+                ))}
+              </ul>
             </CardContent>
           </Card>
         </TabsContent>

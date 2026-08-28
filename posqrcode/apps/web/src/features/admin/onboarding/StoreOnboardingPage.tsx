@@ -27,7 +27,7 @@ const fieldClass =
 /** Self-serve create-store wizard — same steps/labels as super-admin Create store. */
 export function StoreOnboardingPage() {
   const navigate = useNavigate()
-  const { create, update } = useRestaurants()
+  const { create } = useRestaurants()
   const { bindRestaurant } = useAuth()
   const { setPlan } = useTenant()
   const { applyIndustryDefaults } = useServiceConfig()
@@ -126,12 +126,9 @@ export function StoreOnboardingPage() {
           currency: draft.currency,
           logoImage: draft.logoDataUrl,
           coverImage: draft.coverDataUrl,
-        })
-        await update(venue.id, {
           whatsapp: draft.whatsapp.trim() || phoneDigits,
           mapsLink: draft.mapsLink.trim() || undefined,
           country: draft.country,
-          showEmail: true,
         })
         bindRestaurant(venue.id)
         setCurrentRestaurantId(venue.id)

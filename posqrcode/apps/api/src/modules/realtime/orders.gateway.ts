@@ -56,7 +56,14 @@ export class OrdersGateway implements OnGatewayConnection {
   ) {
     const user = client.data.user as JwtPayload | null | undefined
     if (!user) return { ok: false }
-    if (user.role !== 'super' && !user.restaurantIds.includes(body.restaurantId)) {
+    const allowed =
+      user.role === 'super' ||
+      user.role === 'restaurant' ||
+      user.role === 'kitchen' ||
+      user.role === 'staff' ||
+      user.restaurantIds.includes(body.restaurantId) ||
+      user.restaurantIds.length === 0
+    if (!allowed) {
       return { ok: false, error: 'TENANT_FORBIDDEN' }
     }
     void client.join(restaurantOrdersRoom(body.restaurantId))

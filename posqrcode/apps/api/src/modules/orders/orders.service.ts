@@ -52,6 +52,12 @@ export class OrdersService {
       where: { id: input.restaurantId },
     })
     if (!restaurant) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Restaurant not found' })
+    if (restaurant.isOpen === false) {
+      throw new BadRequestException({
+        code: 'STORE_CLOSED',
+        message: 'Restaurant is currently closed for orders',
+      })
+    }
 
     const subtotal = input.lines.reduce(
       (s: number, l: { unitPrice: number; qty: number }) => s + l.unitPrice * l.qty,

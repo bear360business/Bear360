@@ -13,6 +13,7 @@ import type {
   PurchaseCreateInput,
 } from '@bear360/shared'
 import { PrismaService } from '../../prisma/prisma.service'
+import { EntitlementsService } from '../entitlements/entitlements.service'
 import { TenantsService } from '../tenants/tenants.service'
 import type { JwtPayload } from '../auth/jwt-payload'
 
@@ -21,6 +22,7 @@ export class CatalogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tenants: TenantsService,
+    private readonly entitlements: EntitlementsService,
   ) {}
 
   // ----- Menu -----
@@ -117,6 +119,16 @@ export class CatalogService {
     if (input.id) {
       return this.prisma.menuItem.update({ where: { id: input.id }, data })
     }
+    const ent = await this.entitlements.forRestaurant(user, restaurantId)
+    if (ent.limits.menuItems != null) {
+      const count = await this.prisma.menuItem.count({ where: { restaurantId } })
+      if (count >= ent.limits.menuItems) {
+        throw new BadRequestException({
+          code: 'LIMIT_REACHED',
+          message: `Menu item limit reached (${count}/${ent.limits.menuItems}). Please upgrade your plan.`,
+        })
+      }
+    }
     return this.prisma.menuItem.create({ data: { restaurantId, ...data } })
   }
 
@@ -156,6 +168,16 @@ export class CatalogService {
     }
     if (input.id) {
       return this.prisma.diningTable.update({ where: { id: input.id }, data })
+    }
+    const ent = await this.entitlements.forRestaurant(user, restaurantId)
+    if (ent.limits.tables != null) {
+      const count = await this.prisma.diningTable.count({ where: { restaurantId } })
+      if (count >= ent.limits.tables) {
+        throw new BadRequestException({
+          code: 'LIMIT_REACHED',
+          message: `Table limit reached (${count}/${ent.limits.tables}). Please upgrade your plan.`,
+        })
+      }
     }
     return this.prisma.diningTable.create({ data: { restaurantId, ...data } })
   }
@@ -197,6 +219,16 @@ export class CatalogService {
     }
     if (!input.pin) {
       throw new BadRequestException({ code: 'PIN_REQUIRED', message: 'PIN required for new staff' })
+    }
+    const ent = await this.entitlements.forRestaurant(user, restaurantId)
+    if (ent.limits.staffSeats != null) {
+      const count = await this.prisma.employee.count({ where: { restaurantId, active: true } })
+      if (count >= ent.limits.staffSeats) {
+        throw new BadRequestException({
+          code: 'LIMIT_REACHED',
+          message: `Staff seat limit reached (${count}/${ent.limits.staffSeats}). Please upgrade your plan.`,
+        })
+      }
     }
     const created = await this.prisma.employee.create({
       data: {

@@ -102,19 +102,21 @@ export async function apiRequest<T>(path: string, opts: RequestOpts = {}): Promi
     if (refreshed) {
       return apiRequest<T>(path, { ...opts, _retry: true })
     }
+    const hadToken = !!getAccessToken() || !!getRefreshToken()
     try {
       localStorage.removeItem('bearqr:session')
     } catch {}
     clearTokens()
-    if (typeof window !== 'undefined') {
+    if (hadToken && typeof window !== 'undefined') {
       window.dispatchEvent(new Event('bearqr:auth-changed'))
     }
   } else if (res.status === 401 && opts.auth !== false && opts._retry) {
+    const hadToken = !!getAccessToken() || !!getRefreshToken()
     try {
       localStorage.removeItem('bearqr:session')
     } catch {}
     clearTokens()
-    if (typeof window !== 'undefined') {
+    if (hadToken && typeof window !== 'undefined') {
       window.dispatchEvent(new Event('bearqr:auth-changed'))
     }
   }

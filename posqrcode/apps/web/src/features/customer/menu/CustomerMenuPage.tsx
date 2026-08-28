@@ -151,7 +151,12 @@ export function CustomerMenuPage() {
         ))}
       </div>
 
-      {!ordering && (
+      {restaurant?.isOpen === false && (
+        <p className="border-b border-destructive/30 bg-destructive-tint px-4 py-2.5 text-center text-xs font-semibold text-destructive">
+          Store is currently closed for orders
+        </p>
+      )}
+      {!ordering && restaurant?.isOpen !== false && (
         <p className="border-b border-warning/30 bg-warning-tint px-4 py-2.5 text-center text-xs font-medium text-warning">
           {t('menu.orderingPaused')}
         </p>
@@ -212,7 +217,7 @@ export function CustomerMenuPage() {
                   {...cartHandlers(item)}
                   showImage={config.customerUi.showItemImages}
                   showBadges={config.customerUi.showVegSpiceBadges}
-                  canOrder={ordering && !ops.catalogueMode}
+                  canOrder={ordering && !ops.catalogueMode && restaurant?.isOpen !== false}
                   hidePrice={ops.catalogueMode}
                 />
               ))}

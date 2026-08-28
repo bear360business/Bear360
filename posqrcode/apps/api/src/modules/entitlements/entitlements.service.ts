@@ -67,8 +67,9 @@ export class EntitlementsService {
     const platform = await this.prisma.platformConfig.findUnique({ where: { id: 'default' } })
     const platformFlags = (platform?.flags ?? {}) as Record<string, unknown>
 
-    let features = { ...PLAN_FEATURES[planId] }
-    let limits = { ...PLAN_LIMITS[planId] }
+    const isTrial = restaurant.status === 'trial'
+    let features = isTrial ? { ...PLAN_FEATURES.enterprise } : { ...PLAN_FEATURES[planId] }
+    let limits = isTrial ? { ...PLAN_LIMITS.enterprise } : { ...PLAN_LIMITS[planId] }
 
     const plans = platformFlags.plans
     if (Array.isArray(plans)) {

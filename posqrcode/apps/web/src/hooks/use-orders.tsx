@@ -155,7 +155,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   )
 
   useEffect(() => {
-    if (mock) return
+    if (mock || !getAccessToken()) return
     let cancelled = false
     void apiListOrders(venueId)
       .then((orders) => {

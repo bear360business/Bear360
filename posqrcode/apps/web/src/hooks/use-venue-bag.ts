@@ -35,7 +35,14 @@ export function useVenueBagState<T>(opts: {
   })
   const [hydrated, setHydrated] = useState(mock)
 
-  useEffect(() => subscribeVenueScope(() => setVenueId(resolveDataVenueId())), [])
+  useEffect(
+    () =>
+      subscribeVenueScope(() => {
+        const next = resolveDataVenueId()
+        setVenueId((prev) => (prev !== next ? next : prev))
+      }),
+    [],
+  )
 
   const writeLocal = useCallback(
     (next: T) => {

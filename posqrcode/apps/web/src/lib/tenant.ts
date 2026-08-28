@@ -9,6 +9,8 @@
 //
 // UI never asks "which plan is this" — it asks useFeature('inventory').
 
+import { readSuperSettings } from './super-settings'
+
 export type PlanId = 'basic' | 'professional' | 'enterprise'
 
 export type FeatureKey =
@@ -339,19 +341,45 @@ export function mergeTenantConfig(stored: unknown): TenantConfig {
  * Effective grants: plan ∧ industry ∧ platform ∧ super override.
  * Industry / platform layers omit a key to mean "allow" (`!== false`).
  */
+const ALL_TRIAL_FEATURES: Record<FeatureKey, boolean> = {
+  qrOrdering: true,
+  pos: true,
+  kitchen: true,
+  tables: true,
+  inventory: true,
+  staff: true,
+  scheduler: true,
+  payroll: true,
+  reportsBasic: true,
+  reportsAdvanced: true,
+  reportsCustom: true,
+  ai: true,
+  multiBranch: true,
+  export: true,
+}
+
 export function resolveFeatures(
   config: TenantConfig,
   industryGrants: Partial<Record<FeatureKey, boolean>> = {},
   platformGrants: Partial<Record<FeatureKey, boolean>> = {},
 ): Record<FeatureKey, boolean> {
-  const granted = featuresFor(config.planId)
+  const isTrial = config.status === 'trial'
+  const superSettings = readSuperSettings()
+  const trialPolicy = superSettings.freeTrialPolicy
+  const granted = isTrial
+    ? trialPolicy?.accessLevel === 'custom' && trialPolicy.trialFeatures
+      ? trialPolicy.trialFeatures
+      : ALL_TRIAL_FEATURES
+    : featuresFor(config.planId)
+
   const out = {} as Record<FeatureKey, boolean>
   for (const key of Object.keys(FEATURE_META) as FeatureKey[]) {
+    const hasOverride = !isTrial && config.overrides[key] !== undefined
+    const baseFeature = hasOverride ? Boolean(config.overrides[key]) : Boolean(granted[key] ?? true)
     out[key] =
-      Boolean(granted[key]) &&
+      baseFeature &&
       industryGrants[key] !== false &&
-      platformGrants[key] !== false &&
-      config.overrides[key] !== false
+      platformGrants[key] !== false
   }
   return out
 }
@@ -366,7 +394,7 @@ export interface LimitState {
 
 export function resolveLimit(config: TenantConfig, key: LimitKey): LimitState {
   const used = config.usage[key] ?? 0
-  const max = limitsFor(config.planId)[key]
+  const max = config.status === 'trial' ? null : limitsFor(config.planId)[key]
   if (max === null) return { used, max: null, ratio: 0, state: 'ok' }
   const ratio = max === 0 ? 1 : used / max
   const state = used > max ? 'over' : used === max ? 'full' : ratio >= 0.8 ? 'warn' : 'ok'

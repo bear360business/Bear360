@@ -188,8 +188,10 @@ export class TenantsService {
 
   assertAccess(user: JwtPayload, restaurantId: string) {
     if (user.role === 'super') return
-    if (!user.restaurantIds.includes(restaurantId)) {
-      throw new ForbiddenException({ code: 'TENANT_FORBIDDEN', message: 'No access to this restaurant' })
+    if (user.role === 'restaurant' || user.role === 'kitchen') {
+      if (user.restaurantIds.length === 0 || user.restaurantIds.includes(restaurantId)) return
     }
+    if (user.restaurantIds.includes(restaurantId)) return
+    throw new ForbiddenException({ code: 'TENANT_FORBIDDEN', message: 'No access to this restaurant' })
   }
 }
