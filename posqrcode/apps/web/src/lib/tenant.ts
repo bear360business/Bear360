@@ -305,13 +305,27 @@ export interface TenantConfig {
   usage: Record<LimitKey, number>
 }
 
+export function calculateTrialState(
+  createdAt?: string,
+  durationDays = 7,
+): { trialDaysLeft: number; renewsOn: string } {
+  const start = createdAt ? new Date(createdAt) : new Date()
+  const validStart = isNaN(start.getTime()) ? new Date() : start
+  const expiresAt = new Date(validStart.getTime() + durationDays * 24 * 60 * 60 * 1000)
+  const now = new Date()
+  const msLeft = expiresAt.getTime() - now.getTime()
+  const daysLeft = Math.max(0, Math.ceil(msLeft / (1000 * 60 * 60 * 24)))
+  const renewsOn = expiresAt.toISOString().slice(0, 10)
+  return { trialDaysLeft: Math.min(daysLeft, durationDays), renewsOn }
+}
+
 export const DEFAULT_TENANT_CONFIG: TenantConfig = {
   planId: 'professional',
-  status: 'active',
-  renewsOn: '2026-09-12',
-  trialDaysLeft: 14,
+  status: 'trial',
+  renewsOn: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+  trialDaysLeft: 7,
   overrides: {},
-  usage: { tables: 12, menuItems: 47, ordersPerMonth: 4281, staffSeats: 5, branches: 1 },
+  usage: { tables: 0, menuItems: 0, ordersPerMonth: 0, staffSeats: 0, branches: 1 },
 }
 
 export const TENANT_STORAGE_KEY = 'bearqr:tenant'

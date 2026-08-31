@@ -72,20 +72,27 @@ export type DiningTableInput = z.infer<typeof DiningTableSchema>
 export const EmployeeUpsertSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
-  phone: z.string().min(8),
-  email: z.string().email().optional().nullable(),
-  pin: z.string().regex(/^\d{4,6}$/).optional(),
+  phone: z.string().min(4),
+  email: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+    z.string().email().optional().nullable(),
+  ),
+  pin: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().regex(/^\d{4,6}$/).optional(),
+  ),
   roleId: z.string().default('waiter'),
   status: z.string().default('active'),
-  hourlyRate: z.number().nonnegative().optional(),
+  hourlyRate: z.coerce.number().nonnegative().optional(),
   posAccess: z.boolean().optional(),
   posPermissions: z
     .object({
-      posTerminal: z.boolean(),
-      orders: z.boolean(),
-      menu: z.boolean(),
-      expenses: z.boolean(),
+      posTerminal: z.boolean().optional(),
+      orders: z.boolean().optional(),
+      menu: z.boolean().optional(),
+      expenses: z.boolean().optional(),
     })
+    .passthrough()
     .optional(),
   active: z.boolean().optional(),
 })

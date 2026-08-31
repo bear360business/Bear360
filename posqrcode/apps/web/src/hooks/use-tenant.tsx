@@ -24,6 +24,7 @@ import { restaurantStatusToTenant } from '@/lib/venue-entitlements'
 import {
   DEFAULT_TENANT_CONFIG,
   TENANT_STORAGE_KEY,
+  calculateTrialState,
   isReadOnly,
   mergeTenantConfig,
   resolveFeatures,
@@ -263,17 +264,20 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   const venue = getCurrentRestaurant()
   const industryId = venue.industryId
   const industryProfile = getIndustryProfile(industryId)
-  const effectiveConfig = useMemo<TenantConfig>(
-    () =>
-      mergeTenantConfig({
-        ...config,
-        planId: venue.planId ?? config.planId,
-        status: restaurantStatusToTenant(venue.status),
-      }),
-    // venueTick: Super restaurant mutations / venue switch
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- venue read from mutable mock
-    [config, venue.planId, venue.status, venueTick],
-  )
+  const effectiveConfig = useMemo<TenantConfig>(() => {
+    const status = restaurantStatusToTenant(venue.status)
+    const isTrial = status === 'trial'
+    const trialDays = isTrial ? calculateTrialState(venue.createdAt, 7) : null
+
+    return mergeTenantConfig({
+      ...config,
+      planId: venue.planId ?? config.planId,
+      status,
+      ...(trialDays
+        ? { trialDaysLeft: trialDays.trialDaysLeft, renewsOn: trialDays.renewsOn }
+        : {}),
+    })
+  }, [config, venue.planId, venue.status, venue.createdAt, venueTick])
   const platformGrants = useMemo(
     () =>
       ({

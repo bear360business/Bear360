@@ -130,8 +130,8 @@ export function StoreOnboardingPage() {
           mapsLink: draft.mapsLink.trim() || undefined,
           country: draft.country,
         })
-        bindRestaurant(venue.id)
         setCurrentRestaurantId(venue.id)
+        await bindRestaurant(venue.id)
         setPlan(chosen)
         applyIndustryDefaults(draft.industryId)
         notifyVenueIndustryChanged()

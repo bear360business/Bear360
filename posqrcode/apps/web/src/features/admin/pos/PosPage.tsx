@@ -522,9 +522,15 @@ function PosTerminal({
               </button>
             ))}
             {visibleItems.length === 0 && (
-              <p className="col-span-full py-10 text-center text-sm text-muted-foreground">
-                No dishes match "{query}"
-              </p>
+              <div className="col-span-full py-12 text-center">
+                <p className="text-sm font-medium text-muted-foreground">
+                  {query
+                    ? `No dishes match "${query}"`
+                    : menuItems.length === 0
+                      ? 'No dishes added yet. Add items in Menu to start taking orders.'
+                      : 'No available dishes in this category.'}
+                </p>
+              </div>
             )}
           </div>
         </div>

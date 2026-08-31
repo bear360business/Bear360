@@ -1,12 +1,14 @@
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { AppModule } from './app.module'
+import { AllExceptionsFilter } from './common/all-exceptions.filter'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true })
   const origin = process.env.CORS_ORIGIN ?? 'http://localhost:5173'
   app.enableCors({ origin, credentials: true })
   app.setGlobalPrefix('api/v1')
+  app.useGlobalFilters(new AllExceptionsFilter())
 
   const config = new DocumentBuilder()
     .setTitle('Bear 360 API')

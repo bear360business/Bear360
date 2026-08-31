@@ -214,6 +214,13 @@ export function RestaurantsProvider({ children }: { children: ReactNode }) {
             writeStored(next)
             return next
           })
+          if (rows.length > 0) {
+            const currentId = getCurrentRestaurantId()
+            const exists = rows.some((r) => r.id === currentId || r.slug === currentId)
+            if (!exists) {
+              setCurrentRestaurantId(rows[0].id)
+            }
+          }
         })
         .catch((err) => {
           if (getAccessToken()) reportApiError(err, 'Could not load restaurants')
@@ -256,6 +263,7 @@ export function RestaurantsProvider({ children }: { children: ReactNode }) {
       syncRestaurantsMock(next)
       return next
     })
+    setCurrentRestaurantId(created.id)
     syncTenantFromVenue(created)
     return created
   }, [])

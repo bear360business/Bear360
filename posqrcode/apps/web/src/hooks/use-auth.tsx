@@ -48,7 +48,7 @@ interface AuthContextValue {
     password: string,
     verificationToken?: string,
   ) => Promise<{ ok: true; session: AuthSession } | { ok: false; error: string }>
-  bindRestaurant: (restaurantId: string) => void
+  bindRestaurant: (restaurantId: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -123,29 +123,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   )
 
-  const bindRestaurant = useCallback((restaurantId: string) => {
+  const bindRestaurant = useCallback(async (restaurantId: string) => {
     const s = getSession()
     if (!s) return
     bindAccountRestaurant(s.email, restaurantId)
     setCurrentRestaurantId(restaurantId)
     setSessionState(getSession())
-    void apiRefreshSession().then((session) => {
-      if (!session) return
-      const restaurantIds = [...new Set([...(session.restaurantIds ?? []), restaurantId])]
-      const next = {
-        ...session,
-        restaurantId,
-        restaurantIds,
+    try {
+      const refreshed = await apiRefreshSession()
+      if (refreshed) {
+        const restaurantIds = [...new Set([...(refreshed.restaurantIds ?? []), restaurantId])]
+        const next = {
+          ...refreshed,
+          restaurantId,
+          restaurantIds,
+        }
+        bindAccountRestaurant(next.email, restaurantId)
+        setCurrentRestaurantId(restaurantId)
+        setSessionState(next)
       }
-      bindAccountRestaurant(next.email, restaurantId)
-      setCurrentRestaurantId(restaurantId)
-      setSessionState(next)
-      try {
-        window.dispatchEvent(new Event('bearqr:auth-changed'))
-      } catch {
-        /* ignore */
-      }
-    })
+    } catch {
+      /* ignore */
+    }
+    try {
+      window.dispatchEvent(new Event('bearqr:auth-changed'))
+    } catch {
+      /* ignore */
+    }
   }, [])
 
   const value = useMemo(

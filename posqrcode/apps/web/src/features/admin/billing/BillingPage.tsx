@@ -160,7 +160,9 @@ export function BillingPage() {
                 <p className="mt-1 text-xs text-muted-foreground">
                   {subStatus
                     ? `Subscription: ${subStatus}`
-                    : `Renews ${config.renewsOn} · ${rzConfigured ? 'Razorpay' : 'demo billing'}`}
+                    : config.status === 'trial'
+                      ? `Trial ends ${config.renewsOn} (${config.trialDaysLeft} ${config.trialDaysLeft === 1 ? 'day' : 'days'} left)`
+                      : `Renews ${config.renewsOn} · ${rzConfigured ? 'Razorpay' : 'demo billing'}`}
                 </p>
               </div>
               {config.planId !== 'enterprise' && (

@@ -100,13 +100,13 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
   const [venueId, setVenueId] = useState(() => resolveDataVenueId())
 
   const [ingredients, setIngredients] = useState<Ingredient[]>(() =>
-    mock ? read(ING_KEY, resolveDataVenueId(), [] as Ingredient[]) : [],
+    read(ING_KEY, resolveDataVenueId(), [] as Ingredient[]),
   )
   const [purchases, setPurchases] = useState<PurchaseEntry[]>(() =>
-    mock ? read(PUR_KEY, resolveDataVenueId(), [] as PurchaseEntry[]) : [],
+    read(PUR_KEY, resolveDataVenueId(), [] as PurchaseEntry[]),
   )
   const [recipes, setRecipes] = useState<Record<string, RecipeLine[]>>(() =>
-    mock ? read(RECIPE_KEY, resolveDataVenueId(), {} as Record<string, RecipeLine[]>) : {},
+    read(RECIPE_KEY, resolveDataVenueId(), {} as Record<string, RecipeLine[]>),
   )
   const [deducted, setDeducted] = useState<string[]>(() =>
     read(DEDUCTED_KEY, resolveDataVenueId(), []),
@@ -119,6 +119,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
     () =>
       subscribeVenueScope(() => {
         const next = resolveDataVenueId()
+        if (!next || next === venueId) return
         setVenueId(next)
         setIngredients(read(ING_KEY, next, [] as Ingredient[]))
         setPurchases(read(PUR_KEY, next, [] as PurchaseEntry[]))
@@ -126,7 +127,7 @@ export function InventoryProvider({ children }: { children: ReactNode }) {
         setDeducted(read(DEDUCTED_KEY, next, []))
         setExtraWastage(read(WASTE_KEY, next, 0))
       }),
-    [],
+    [venueId],
   )
 
   useEffect(() => {

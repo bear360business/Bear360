@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "rm -f tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo && nest start --watch",
-    "build": "rm -f tsconfig.tsbuildinfo tsconfig.build.tsbuildinfo && nest build",
+    "dev": "nest start --watch",
+    "build": "nest build",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate",

@@ -107,7 +107,17 @@ export function StaffProvider({ children }: { children: ReactNode }) {
         }
         return [...prev, employee]
       })
-      if (!mock) void apiUpsertEmployee(venueId, employee).catch((err) => reportApiError(err))
+      if (!mock) {
+        void apiUpsertEmployee(venueId, employee)
+          .then((saved) => {
+            if (saved && saved.id) {
+              setList((prev) =>
+                prev.map((e) => (e.id === employee.id ? { ...e, ...saved } : e)),
+              )
+            }
+          })
+          .catch((err) => reportApiError(err))
+      }
     },
     [mock, venueId],
   )

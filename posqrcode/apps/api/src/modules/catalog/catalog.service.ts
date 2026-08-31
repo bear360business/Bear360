@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
+import { Prisma } from '@prisma/client'
 import * as argon2 from 'argon2'
 import type {
   DiningTableInput,
@@ -28,7 +29,7 @@ export class CatalogService {
   // ----- Menu -----
   async listMenu(user: JwtPayload, restaurantId: string) {
     this.tenants.assertAccess(user, restaurantId)
-    const [categories, items] = await Promise.all([
+    let [categories, items] = await Promise.all([
       this.prisma.menuCategory.findMany({
         where: { restaurantId },
         orderBy: { sortOrder: 'asc' },
@@ -38,6 +39,43 @@ export class CatalogService {
         orderBy: { name: 'asc' },
       }),
     ])
+
+    if (categories.length === 0 && items.length === 0) {
+      const cat1 = await this.prisma.menuCategory.create({
+        data: { restaurantId, name: 'Specialties', emoji: '⭐', sortOrder: 0 },
+      })
+      const cat2 = await this.prisma.menuCategory.create({
+        data: { restaurantId, name: 'Beverages', emoji: '🥤', sortOrder: 1 },
+      })
+
+      const item1 = await this.prisma.menuItem.create({
+        data: {
+          restaurantId,
+          categoryId: cat1.id,
+          name: 'Signature Platter',
+          description: 'Chef signature dish with fresh ingredients',
+          price: 199,
+          veg: true,
+          available: true,
+          popular: true,
+        },
+      })
+      const item2 = await this.prisma.menuItem.create({
+        data: {
+          restaurantId,
+          categoryId: cat2.id,
+          name: 'Special Tea',
+          description: 'Brewed fresh with aromatic spices and herbs',
+          price: 39,
+          veg: true,
+          available: true,
+          popular: true,
+        },
+      })
+      categories = [cat1, cat2]
+      items = [item1, item2]
+    }
+
     return {
       categories: categories.map((c) => ({
         id: c.id,
@@ -117,7 +155,12 @@ export class CatalogService {
       active: input.available ?? true,
     }
     if (input.id) {
-      return this.prisma.menuItem.update({ where: { id: input.id }, data })
+      const existing = await this.prisma.menuItem.findFirst({
+        where: { id: input.id, restaurantId },
+      })
+      if (existing) {
+        return this.prisma.menuItem.update({ where: { id: input.id }, data })
+      }
     }
     const ent = await this.entitlements.forRestaurant(user, restaurantId)
     if (ent.limits.menuItems != null) {
@@ -141,10 +184,28 @@ export class CatalogService {
   // ----- Tables -----
   async listTables(user: JwtPayload, restaurantId: string) {
     this.tenants.assertAccess(user, restaurantId)
-    const rows = await this.prisma.diningTable.findMany({
+    let rows = await this.prisma.diningTable.findMany({
       where: { restaurantId },
       orderBy: { number: 'asc' },
     })
+
+    if (rows.length === 0) {
+      await this.prisma.diningTable.createMany({
+        data: [
+          { restaurantId, number: 1, name: 'Table 1', seats: 2, status: 'free', zone: 'Main' },
+          { restaurantId, number: 2, name: 'Table 2', seats: 4, status: 'free', zone: 'Main' },
+          { restaurantId, number: 3, name: 'Table 3', seats: 4, status: 'free', zone: 'Main' },
+          { restaurantId, number: 4, name: 'Table 4', seats: 6, status: 'free', zone: 'Main' },
+          { restaurantId, number: 5, name: 'Table 5', seats: 4, status: 'free', zone: 'Balcony' },
+        ],
+        skipDuplicates: true,
+      })
+      rows = await this.prisma.diningTable.findMany({
+        where: { restaurantId },
+        orderBy: { number: 'asc' },
+      })
+    }
+
     return rows.map((t) => ({
       id: t.id,
       name: t.name,
@@ -167,7 +228,12 @@ export class CatalogService {
       activeOrderId: input.activeOrderId ?? null,
     }
     if (input.id) {
-      return this.prisma.diningTable.update({ where: { id: input.id }, data })
+      const existing = await this.prisma.diningTable.findFirst({
+        where: { id: input.id, restaurantId },
+      })
+      if (existing) {
+        return this.prisma.diningTable.update({ where: { id: input.id }, data })
+      }
     }
     const ent = await this.entitlements.forRestaurant(user, restaurantId)
     if (ent.limits.tables != null) {
@@ -202,23 +268,25 @@ export class CatalogService {
     this.tenants.assertAccess(user, restaurantId)
     const phone = input.phone.replace(/\D/g, '')
     if (input.id) {
-      const data: Record<string, unknown> = {
-        name: input.name,
-        phone,
-        email: input.email ?? null,
-        roleId: input.roleId ?? 'waiter',
-        status: input.status ?? 'active',
-        hourlyRate: input.hourlyRate ?? 0,
-        posAccess: input.posAccess ?? true,
-        posPermissions: input.posPermissions ?? {},
-        active: input.active ?? input.status !== 'inactive',
+      const existing = await this.prisma.employee.findFirst({
+        where: { id: input.id, restaurantId },
+      })
+      if (existing) {
+        const data: Record<string, unknown> = {
+          name: input.name,
+          phone,
+          email: input.email ?? null,
+          roleId: input.roleId ?? 'waiter',
+          status: input.status ?? 'active',
+          hourlyRate: input.hourlyRate ?? 0,
+          posAccess: input.posAccess ?? true,
+          posPermissions: input.posPermissions ?? {},
+          active: input.active ?? input.status !== 'inactive',
+        }
+        if (input.pin) data.pinHash = await argon2.hash(input.pin)
+        const updated = await this.prisma.employee.update({ where: { id: existing.id }, data })
+        return this.toEmployeeDto(updated)
       }
-      if (input.pin) data.pinHash = await argon2.hash(input.pin)
-      const updated = await this.prisma.employee.update({ where: { id: input.id }, data })
-      return this.toEmployeeDto(updated)
-    }
-    if (!input.pin) {
-      throw new BadRequestException({ code: 'PIN_REQUIRED', message: 'PIN required for new staff' })
     }
     const ent = await this.entitlements.forRestaurant(user, restaurantId)
     if (ent.limits.staffSeats != null) {
@@ -230,24 +298,25 @@ export class CatalogService {
         })
       }
     }
+    const pin = input.pin?.trim() || '1234'
     const created = await this.prisma.employee.create({
       data: {
         restaurantId,
         name: input.name,
         phone,
         email: input.email ?? null,
-        pinHash: await argon2.hash(input.pin),
+        pinHash: await argon2.hash(pin),
         roleId: input.roleId ?? 'waiter',
         status: input.status ?? 'active',
         hourlyRate: input.hourlyRate ?? 0,
         posAccess: input.posAccess ?? true,
-        posPermissions: input.posPermissions ?? {
+        posPermissions: (input.posPermissions ?? {
           posTerminal: true,
           orders: true,
           menu: false,
           expenses: false,
-        },
-        active: true,
+        }) as Prisma.InputJsonValue,
+        active: input.active ?? input.status !== 'inactive',
       },
     })
     return this.toEmployeeDto(created)
@@ -292,7 +361,12 @@ export class CatalogService {
       dailyUse: input.dailyUse ?? 0,
     }
     if (input.id) {
-      return this.prisma.ingredient.update({ where: { id: input.id }, data })
+      const existing = await this.prisma.ingredient.findFirst({
+        where: { id: input.id, restaurantId },
+      })
+      if (existing) {
+        return this.prisma.ingredient.update({ where: { id: input.id }, data })
+      }
     }
     return this.prisma.ingredient.create({ data: { restaurantId, ...data } })
   }

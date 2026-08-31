@@ -77,26 +77,26 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   const authTick = useAuthTick()
   const [venueId, setVenueId] = useState(() => resolveDataVenueId())
   const [categories, setCategories] = useState<MenuCategory[]>(() => {
-    // API mode: never paint from localStorage (stale mock cache). Start empty → hydrate.
-    const initial = mock ? loadForVenue(resolveDataVenueId()).categories : []
+    const initial = loadForVenue(resolveDataVenueId()).categories
     syncCategories(initial)
     return initial
   })
   const [items, setItems] = useState<MenuItem[]>(() => {
-    const initial = mock ? loadForVenue(resolveDataVenueId()).items : []
+    const initial = loadForVenue(resolveDataVenueId()).items
     syncItems(initial)
     return initial
   })
 
   useEffect(() => subscribeVenueScope(() => {
     const next = resolveDataVenueId()
+    if (!next || next === venueId) return
     setVenueId(next)
     const data = loadForVenue(next)
     setCategories(data.categories)
     setItems(data.items)
     syncCategories(data.categories)
     syncItems(data.items)
-  }), [])
+  }), [venueId])
 
   useEffect(() => {
     if (mock || isStoreSetupPending()) return
@@ -110,6 +110,8 @@ export function MenuProvider({ children }: { children: ReactNode }) {
           setItems(data.items)
           syncCategories(data.categories)
           syncItems(data.items)
+          writeVenueScoped(CAT_KEY, venueId, data.categories)
+          writeVenueScoped(ITEM_KEY, venueId, data.items)
           return
         }
         const data = await apiPublicMenu(venueId)
@@ -143,13 +145,10 @@ export function MenuProvider({ children }: { children: ReactNode }) {
         setItems(nextItems)
         syncCategories(nextCats)
         syncItems(nextItems)
+        writeVenueScoped(CAT_KEY, venueId, nextCats)
+        writeVenueScoped(ITEM_KEY, venueId, nextItems)
       } catch (err) {
-        // Do not keep stale local/mock menu when authenticated hydrate fails.
         if (getAccessToken()) {
-          setCategories([])
-          setItems([])
-          syncCategories([])
-          syncItems([])
           reportApiError(err, 'Could not load menu')
         }
       }
@@ -161,16 +160,14 @@ export function MenuProvider({ children }: { children: ReactNode }) {
   }, [mock, venueId, authTick])
 
   useEffect(() => {
-    if (!mock) return
     writeVenueScoped(CAT_KEY, venueId, categories)
     syncCategories(categories)
-  }, [categories, venueId, mock])
+  }, [categories, venueId])
 
   useEffect(() => {
-    if (!mock) return
     writeVenueScoped(ITEM_KEY, venueId, items)
     syncItems(items)
-  }, [items, venueId, mock])
+  }, [items, venueId])
 
   const upsertCategory = useCallback(
     (category: MenuCategory) => {

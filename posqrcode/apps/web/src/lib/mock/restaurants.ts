@@ -41,7 +41,15 @@ export const CURRENT_VENUE_EVENT = 'bearqr:current-venue'
 
 function readActiveVenueId(): string {
   try {
-    return localStorage.getItem(ACTIVE_VENUE_KEY) || 'masala-bear'
+    const fromStorage = localStorage.getItem(ACTIVE_VENUE_KEY)
+    if (fromStorage) return fromStorage
+    const rawSession = localStorage.getItem('bearqr:session')
+    if (rawSession) {
+      const session = JSON.parse(rawSession) as { restaurantId?: string; restaurantIds?: string[] }
+      if (session.restaurantId) return session.restaurantId
+      if (session.restaurantIds && session.restaurantIds[0]) return session.restaurantIds[0]
+    }
+    return 'masala-bear'
   } catch {
     return 'masala-bear'
   }
@@ -91,7 +99,10 @@ export function setCurrentRestaurantId(id: string) {
     /* ignore */
   }
   if (typeof window !== 'undefined') {
-    if (changed) window.dispatchEvent(new Event(CURRENT_VENUE_EVENT))
+    if (changed) {
+      window.dispatchEvent(new Event(CURRENT_VENUE_EVENT))
+      window.dispatchEvent(new Event('bearqr:data-venue'))
+    }
     window.dispatchEvent(new Event('bearqr:tenant-resync'))
   }
 }

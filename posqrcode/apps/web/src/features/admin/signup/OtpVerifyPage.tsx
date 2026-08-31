@@ -200,9 +200,13 @@ export function OtpVerifyPage() {
         </button>
       </div>
 
-      <div className="mt-8 -mx-8 -mb-8 border-t border-[#EEF1F6] bg-[#F7F8FB] px-8 py-4 text-center text-sm text-[#5C6478] sm:-mx-10 sm:-mb-10 sm:px-10">
+      <div className="mt-6 border-t border-[#EEF1F6] pt-5 text-center text-sm text-[#5C6478]">
         Already have an account?{' '}
-        <Link to="/login" className="font-semibold" style={{ color: AUTH_ACCENT }}>
+        <Link
+          to="/login"
+          className="font-semibold underline-offset-2 hover:underline"
+          style={{ color: AUTH_ACCENT }}
+        >
           Log in →
         </Link>
       </div>

@@ -453,7 +453,7 @@ export function SuperSettingsPage() {
                 <div className="space-y-2">
                   <Label>Default Free Trial Duration</Label>
                   <Select
-                    value={draft.freeTrialPolicy?.defaultTrialDays ?? '14'}
+                    value={draft.freeTrialPolicy?.defaultTrialDays ?? '7'}
                     onValueChange={(v) =>
                       patch((prev) => ({
                         ...prev,
@@ -468,8 +468,8 @@ export function SuperSettingsPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="7">7 Days Free Trial</SelectItem>
-                      <SelectItem value="14">14 Days Free Trial (Recommended)</SelectItem>
+                      <SelectItem value="7">7 Days Free Trial (Default)</SelectItem>
+                      <SelectItem value="14">14 Days Free Trial</SelectItem>
                       <SelectItem value="30">30 Days Free Trial</SelectItem>
                       <SelectItem value="60">60 Days Free Trial</SelectItem>
                     </SelectContent>

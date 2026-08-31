@@ -7,7 +7,7 @@ import {
   serviceConfigFromIndustry,
 } from '@/lib/service-config'
 import { getCurrentRestaurantId } from '@/lib/mock/restaurants'
-import { TENANT_STORAGE_KEY, type PlanId, type TenantStatus } from '@/lib/tenant'
+import { calculateTrialState, TENANT_STORAGE_KEY, type PlanId, type TenantStatus } from '@/lib/tenant'
 import type { IndustryId, RestaurantStatus } from '@/lib/types'
 import { writeVenueScoped } from '@/lib/venue-scope'
 
@@ -24,18 +24,24 @@ export function syncTenantFromVenue(venue: {
   slug?: string
   planId: PlanId
   status: RestaurantStatus
+  createdAt?: string
 }): void {
   const current = getCurrentRestaurantId()
   if (venue.id !== current && venue.slug !== current) return
   try {
     const raw = localStorage.getItem(TENANT_STORAGE_KEY)
     const prev = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+    const isTrial = venue.status === 'trial'
+    const trialState = isTrial ? calculateTrialState(venue.createdAt, 7) : null
     localStorage.setItem(
       TENANT_STORAGE_KEY,
       JSON.stringify({
         ...prev,
         planId: venue.planId,
         status: restaurantStatusToTenant(venue.status),
+        ...(trialState
+          ? { trialDaysLeft: trialState.trialDaysLeft, renewsOn: trialState.renewsOn }
+          : {}),
       }),
     )
     window.dispatchEvent(new Event('bearqr:tenant-resync'))

@@ -53,16 +53,16 @@ export function TablesProvider({ children }: { children: ReactNode }) {
   const authTick = useAuthTick()
   const [venueId, setVenueId] = useState(() => resolveDataVenueId())
   const [tables, setTables] = useState<DiningTable[]>(() =>
-    mock ? loadTables(resolveDataVenueId()) : [],
+    loadTables(resolveDataVenueId()),
   )
   const [reservations, setReservations] = useState<Reservation[]>(() =>
-    mock ? loadReservations(resolveDataVenueId()) : [],
+    loadReservations(resolveDataVenueId()),
   )
 
   useEffect(() => {
-    if (!mock) return
     writeVenueScoped(TABLES_KEY, venueId, tables)
-  }, [tables, venueId, mock])
+  }, [tables, venueId])
+
   useEffect(() => {
     writeVenueScoped(RES_KEY, venueId, reservations)
     if (!mock && getAccessToken()) {
@@ -74,11 +74,12 @@ export function TablesProvider({ children }: { children: ReactNode }) {
     () =>
       subscribeVenueScope(() => {
         const next = resolveDataVenueId()
+        if (!next || next === venueId) return
         setVenueId(next)
         setTables(loadTables(next))
         setReservations(loadReservations(next))
       }),
-    [],
+    [venueId],
   )
 
   useEffect(() => {
@@ -91,7 +92,11 @@ export function TablesProvider({ children }: { children: ReactNode }) {
       .then(([tableRows, resRows]) => {
         if (cancelled) return
         setTables(tableRows)
-        if (Array.isArray(resRows)) setReservations(resRows)
+        writeVenueScoped(TABLES_KEY, venueId, tableRows)
+        if (Array.isArray(resRows)) {
+          setReservations(resRows)
+          writeVenueScoped(RES_KEY, venueId, resRows)
+        }
       })
       .catch((err) => reportApiError(err))
     return () => {

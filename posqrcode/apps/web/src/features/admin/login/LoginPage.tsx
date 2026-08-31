@@ -134,19 +134,23 @@ export function LoginPage() {
         </AuthPrimaryButton>
       </form>
 
-      <p className="mt-4 text-center text-sm text-[#8B93A7]">
-        <Link to="/forgot-password" className="hover:text-[#1A1D26]">
+      <p className="mt-5 text-center text-sm text-[#8B93A7]">
+        <Link to="/forgot-password" className="text-[#5C6478] transition-colors hover:text-[#1A1D26]">
           Forgot password?
         </Link>
-        {' · '}
-        <Link to="/staff-login" className="hover:text-[#1A1D26]">
+        <span className="mx-2 text-[#D8DEE9]">·</span>
+        <Link to="/staff-login" className="text-[#5C6478] transition-colors hover:text-[#1A1D26]">
           Staff PIN login
         </Link>
       </p>
 
-      <div className="mt-8 -mx-8 -mb-8 overflow-hidden border-t border-[#EEF1F6] bg-[#F7F8FB] px-8 py-4 text-center text-sm text-[#5C6478] sm:-mx-10 sm:-mb-10 sm:px-10">
+      <div className="mt-6 border-t border-[#EEF1F6] pt-5 text-center text-sm text-[#5C6478]">
         Don&apos;t have an account?{' '}
-        <Link to="/signup" className="font-semibold" style={{ color: AUTH_ACCENT }}>
+        <Link
+          to="/signup"
+          className="font-semibold underline-offset-2 hover:underline"
+          style={{ color: AUTH_ACCENT }}
+        >
           Create your store →
         </Link>
       </div>

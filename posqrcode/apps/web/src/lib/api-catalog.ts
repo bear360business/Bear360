@@ -61,18 +61,23 @@ export function apiUpsertEmployee(
   restaurantId: string,
   employee: Employee & { pin?: string },
 ) {
-  return apiRequest(`/restaurants/${restaurantId}/employees`, {
+  return apiRequest<Employee>(`/restaurants/${restaurantId}/employees`, {
     body: {
-      id: employee.id,
-      name: employee.name,
-      phone: employee.phone,
-      email: employee.email,
-      pin: employee.pin,
-      roleId: employee.roleId,
-      status: employee.status,
-      hourlyRate: employee.hourlyRate,
-      posAccess: employee.posAccess,
-      posPermissions: employee.posPermissions,
+      id: employee.id?.startsWith('emp-') ? undefined : employee.id,
+      name: employee.name.trim(),
+      phone: employee.phone.trim(),
+      email: employee.email?.trim() || null,
+      pin: employee.pin?.trim() || undefined,
+      roleId: employee.roleId || 'waiter',
+      status: employee.status || 'active',
+      hourlyRate: typeof employee.hourlyRate === 'number' ? employee.hourlyRate : 0,
+      posAccess: Boolean(employee.posAccess),
+      posPermissions: employee.posPermissions ?? {
+        posTerminal: true,
+        orders: true,
+        menu: false,
+        expenses: false,
+      },
       active: employee.status !== 'inactive',
     },
   })

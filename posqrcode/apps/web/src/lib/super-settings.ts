@@ -80,9 +80,9 @@ export const DEFAULT_SUPER_SETTINGS: SuperSettings = {
     supportEmail: `support@${BRAND_DOMAIN}`,
   },
   team: DEFAULT_TEAM,
-  billing: { trialDays: '14', currency: 'inr' },
+  billing: { trialDays: '7', currency: 'inr' },
   freeTrialPolicy: {
-    defaultTrialDays: '14',
+    defaultTrialDays: '7',
     autoActivateOnSignup: true,
     accessLevel: 'full',
     trialFeatures: {
