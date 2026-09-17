@@ -7,12 +7,6 @@ console.log('Current working directory:', process.cwd());
 console.log('Node version:', process.version);
 console.log('PORT:', process.env.PORT || 3001);
 
-// If at root and posqrcode exists, cd into posqrcode
-if (fs.existsSync('./posqrcode/apps/api')) {
-  process.chdir('./posqrcode');
-  console.log('Changed directory to ./posqrcode');
-}
-
 // Find schema.prisma
 let schemaPath = 'prisma/schema.prisma';
 if (fs.existsSync('apps/api/prisma/schema.prisma')) {

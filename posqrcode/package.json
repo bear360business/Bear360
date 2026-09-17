@@ -8,6 +8,7 @@
     "dev:web": "pnpm --filter @bear360/web dev",
     "dev:api": "pnpm --filter @bear360/api dev",
     "build": "pnpm --filter @bear360/shared build && pnpm --filter @bear360/api build && pnpm --filter @bear360/web build",
+    "start": "node start.js",
     "typecheck": "pnpm -r typecheck",
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",

@@ -1,13 +1,28 @@
 const { execSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
 
 console.log('=== Starting Bear 360 API ===');
+console.log('Current working directory:', process.cwd());
 console.log('Node version:', process.version);
 console.log('PORT:', process.env.PORT || 3001);
 
+// If at root and posqrcode exists, cd into posqrcode
+if (fs.existsSync('./posqrcode/apps/api')) {
+  process.chdir('./posqrcode');
+  console.log('Changed directory to ./posqrcode');
+}
+
+// Find schema.prisma
+let schemaPath = 'prisma/schema.prisma';
+if (fs.existsSync('apps/api/prisma/schema.prisma')) {
+  schemaPath = 'apps/api/prisma/schema.prisma';
+}
+
 if (process.env.DATABASE_URL) {
-  console.log('DATABASE_URL detected. Running database migrations...');
+  console.log(`DATABASE_URL detected. Running database migrations with ${schemaPath}...`);
   try {
-    execSync('npx prisma migrate deploy --schema=apps/api/prisma/schema.prisma', {
+    execSync(`npx prisma migrate deploy --schema=${schemaPath}`, {
       stdio: 'inherit',
       timeout: 30000,
     });
@@ -19,5 +34,11 @@ if (process.env.DATABASE_URL) {
   console.warn('WARNING: DATABASE_URL is not set in environment variables!');
 }
 
-console.log('Booting NestJS application...');
-require('./apps/api/dist/main.js');
+// Find main.js
+let mainPath = './dist/main.js';
+if (fs.existsSync('./apps/api/dist/main.js')) {
+  mainPath = './apps/api/dist/main.js';
+}
+
+console.log(`Booting NestJS application from ${mainPath}...`);
+require(path.resolve(process.cwd(), mainPath));
