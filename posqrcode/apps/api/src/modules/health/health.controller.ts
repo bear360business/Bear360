@@ -12,4 +12,10 @@ export class HealthController {
     await this.prisma.$queryRaw`SELECT 1`
     return { ok: true, service: 'bear360-api', ts: new Date().toISOString() }
   }
+
+  @Get('sync-db')
+  async syncDb() {
+    await this.prisma.ensureSchema()
+    return { ok: true, message: 'Database schema synchronized (OtpChallenge & all columns present)' }
+  }
 }

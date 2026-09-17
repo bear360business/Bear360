@@ -219,9 +219,16 @@ export class AuthService {
     const code = useSmtp ? String(randomInt(1000, 10000)) : DEMO_OTP
     const codeHash = await argon2.hash(code)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
-    await this.prisma.otpChallenge.create({
-      data: { email, purpose: input.purpose, codeHash, expiresAt },
-    })
+    try {
+      await this.prisma.otpChallenge.create({
+        data: { email, purpose: input.purpose, codeHash, expiresAt },
+      })
+    } catch {
+      await this.prisma.ensureSchema()
+      await this.prisma.otpChallenge.create({
+        data: { email, purpose: input.purpose, codeHash, expiresAt },
+      })
+    }
 
     if (useSmtp) {
       try {
