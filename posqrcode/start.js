@@ -20,15 +20,15 @@ if (fs.existsSync('apps/api/prisma/schema.prisma')) {
 }
 
 if (process.env.DATABASE_URL) {
-  console.log(`DATABASE_URL detected. Running database migrations with ${schemaPath}...`);
+  console.log(`DATABASE_URL detected. Synchronizing database schema with ${schemaPath}...`);
   try {
-    execSync(`npx prisma migrate deploy --schema=${schemaPath}`, {
+    execSync(`npx prisma db push --schema=${schemaPath}`, {
       stdio: 'inherit',
       timeout: 30000,
     });
-    console.log('Database migrations completed successfully.');
+    console.log('Database schema push completed successfully.');
   } catch (err) {
-    console.warn('Database migration warning (non-fatal, continuing to boot server):', err.message);
+    console.warn('Database schema push warning (non-fatal, continuing to boot server):', err.message);
   }
 } else {
   console.warn('WARNING: DATABASE_URL is not set in environment variables!');
