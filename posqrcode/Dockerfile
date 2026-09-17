@@ -24,4 +24,4 @@ ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 
-CMD ["sh", "-c", "pnpm --filter @bear360/api prisma:migrate:deploy && node apps/api/dist/main.js"]
+CMD ["sh", "-c", "pnpm --filter @bear360/api prisma:migrate:deploy || true && node apps/api/dist/main.js"]
