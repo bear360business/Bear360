@@ -7,8 +7,9 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 COPY posqrcode/package.json posqrcode/pnpm-lock.yaml posqrcode/pnpm-workspace.yaml ./
 COPY posqrcode/packages/shared/package.json ./packages/shared/
 COPY posqrcode/apps/api/package.json ./apps/api/
+COPY posqrcode/apps/web/package.json ./apps/web/
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 COPY posqrcode/packages/shared ./packages/shared
 COPY posqrcode/apps/api ./apps/api

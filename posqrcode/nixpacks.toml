@@ -2,7 +2,7 @@
 nixPkgs = ["nodejs_20", "openssl"]
 
 [phases.install]
-cmds = ["corepack enable", "corepack prepare pnpm@10.33.0 --activate", "pnpm install --frozen-lockfile"]
+cmds = ["corepack enable", "corepack prepare pnpm@10.33.0 --activate", "pnpm install --no-frozen-lockfile"]
 
 [phases.build]
 cmds = [
