@@ -22,8 +22,10 @@ RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
 COPY --from=builder /app/posqrcode /app/posqrcode
 
+RUN chmod +x start.sh
+
 ENV NODE_ENV=production
 ENV PORT=3001
 EXPOSE 3001
 
-CMD ["sh", "-c", "pnpm --filter @bear360/api prisma:migrate:deploy || true && node apps/api/dist/main.js"]
+CMD ["./start.sh"]
