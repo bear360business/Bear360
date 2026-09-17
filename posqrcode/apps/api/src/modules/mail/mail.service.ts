@@ -23,12 +23,27 @@ export class MailService {
     const port = Number(this.config.get<string>('SMTP_PORT') ?? '587')
     const user = this.config.get<string>('SMTP_USER')!.trim()
     const pass = this.config.get<string>('SMTP_PASS')!.trim().replace(/\s+/g, '')
-    this.transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465,
-      auth: { user, pass },
-    })
+    const isGmail = host.includes('gmail') || user.endsWith('@gmail.com')
+
+    this.transporter = nodemailer.createTransport(
+      isGmail
+        ? {
+            service: 'gmail',
+            auth: { user, pass },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 5000,
+          }
+        : {
+            host,
+            port,
+            secure: port === 465,
+            auth: { user, pass },
+            connectionTimeout: 5000,
+            greetingTimeout: 5000,
+            socketTimeout: 5000,
+          },
+    )
     return this.transporter
   }
 
