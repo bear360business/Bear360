@@ -1,0 +1,12 @@
+{
+  "name": "bear360-root",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "build": "cd posqrcode && pnpm --filter @bear360/shared build && pnpm --filter @bear360/api prisma:generate && pnpm --filter @bear360/api build",
+    "start": "cd posqrcode && pnpm --filter @bear360/api prisma:migrate:deploy && node apps/api/dist/main.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
