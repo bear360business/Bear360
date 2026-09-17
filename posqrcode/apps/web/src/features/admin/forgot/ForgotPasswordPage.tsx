@@ -46,17 +46,14 @@ export function ForgotPasswordPage() {
     })
     if (!mock) {
       try {
-        const res = await apiRequestOtp(trimmed, 'forgot')
+        await apiRequestOtp(trimmed, 'forgot')
         writeForgotDraft({
           email: trimmed,
           otpVerified: false,
-          demoCode: res.demoCode,
           returnTo: fromSuper ? '/super/login' : loginPathForEmail(trimmed),
         })
-        toast.message(res.demoCode ? 'Demo code ready' : 'Code sent', {
-          description: res.demoCode
-            ? `Use OTP ${res.demoCode} to continue.`
-            : 'Check your email for the 4-digit code.',
+        toast.message('Code sent', {
+          description: 'Check your email for the 4-digit verification code.',
         })
       } catch (err) {
         setSubmitting(false)

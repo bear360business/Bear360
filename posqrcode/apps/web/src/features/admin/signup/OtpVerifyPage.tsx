@@ -89,16 +89,14 @@ export function OtpVerifyPage() {
         setError(
           err instanceof Error
             ? err.message
-            : draft.demoCode
-              ? `Invalid code. Demo OTP is ${draft.demoCode}`
-              : 'Invalid or expired code',
+            : 'Invalid or expired code',
         )
       }
       return
     }
     if (code !== DEMO_OTP) {
       setSubmitting(false)
-      setError(`Invalid code. Demo OTP is ${DEMO_OTP}`)
+      setError('Invalid code')
       return
     }
     writeSignupDraft({ ...draft, otpVerified: true })
@@ -113,9 +111,6 @@ export function OtpVerifyPage() {
     inputs.current[0]?.focus()
     if (!mock && draft) {
       void apiRequestOtp(draft.email, 'signup')
-        .then((res) => {
-          writeSignupDraft({ ...draft, demoCode: res.demoCode })
-        })
         .catch((err) => reportApiError(err))
     }
   }
@@ -165,14 +160,6 @@ export function OtpVerifyPage() {
           ))}
         </div>
         {error && <p className="text-center text-sm text-red-500">{error}</p>}
-        {(mock || draft.demoCode) && (
-          <p className="text-center text-[11px] text-[#A0A8B8]">
-            Demo code:{' '}
-            <span className="font-semibold text-[#5C6478]">
-              {mock ? DEMO_OTP : draft.demoCode}
-            </span>
-          </p>
-        )}
 
         <AuthPrimaryButton disabled={submitting || code.length !== LENGTH}>
           {submitting ? (

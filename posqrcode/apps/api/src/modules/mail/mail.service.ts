@@ -9,20 +9,20 @@ export class MailService {
 
   constructor(private readonly config: ConfigService) {}
 
-  /** True when SMTP host + user + pass are set. */
+  /** True when SMTP host + user + pass are set or fallback available. */
   isConfigured(): boolean {
-    const host = this.config.get<string>('SMTP_HOST')?.trim()
-    const user = this.config.get<string>('SMTP_USER')?.trim()
-    const pass = this.config.get<string>('SMTP_PASS')?.trim()
+    const host = (this.config.get<string>('SMTP_HOST') ?? 'smtp.gmail.com').trim()
+    const user = (this.config.get<string>('SMTP_USER') ?? 'dhiwagaroffice@gmail.com').trim()
+    const pass = (this.config.get<string>('SMTP_PASS') ?? 'nwzprwdzaazgoloy').trim()
     return Boolean(host && user && pass)
   }
 
   private getTransporter(): Transporter {
     if (this.transporter) return this.transporter
-    const host = this.config.get<string>('SMTP_HOST')!.trim()
-    const port = Number(this.config.get<string>('SMTP_PORT') ?? '587')
-    const user = this.config.get<string>('SMTP_USER')!.trim()
-    const pass = this.config.get<string>('SMTP_PASS')!.trim().replace(/\s+/g, '')
+    const host = (this.config.get<string>('SMTP_HOST') ?? 'smtp.gmail.com').trim()
+    const port = Number(this.config.get<string>('SMTP_PORT') ?? '465')
+    const user = (this.config.get<string>('SMTP_USER') ?? 'dhiwagaroffice@gmail.com').trim()
+    const pass = (this.config.get<string>('SMTP_PASS') ?? 'nwzprwdzaazgoloy').trim().replace(/\s+/g, '')
     const isGmail = host.includes('gmail') || user.endsWith('@gmail.com')
 
     this.transporter = nodemailer.createTransport(
@@ -49,7 +49,7 @@ export class MailService {
 
   private fromAddress(): string {
     const name = this.config.get<string>('SMTP_FROM_NAME')?.trim() || 'Bear360'
-    const user = this.config.get<string>('SMTP_USER')!.trim()
+    const user = (this.config.get<string>('SMTP_USER') ?? 'dhiwagaroffice@gmail.com').trim()
     const fromEmail = this.config.get<string>('SMTP_FROM')?.trim() || user
     return `"${name}" <${fromEmail}>`
   }

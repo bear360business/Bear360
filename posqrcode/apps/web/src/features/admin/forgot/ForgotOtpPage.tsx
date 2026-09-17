@@ -84,16 +84,14 @@ export function ForgotOtpPage() {
         setError(
           err instanceof Error
             ? err.message
-            : draft.demoCode
-              ? `Invalid code. Demo OTP is ${draft.demoCode}`
-              : 'Invalid or expired code',
+            : 'Invalid or expired code',
         )
       }
       return
     }
     if (code !== FORGOT_OTP) {
       setSubmitting(false)
-      setError(`Invalid code. Demo OTP is ${FORGOT_OTP}`)
+      setError('Invalid code')
       return
     }
     writeForgotDraft({ ...draft, otpVerified: true })
@@ -108,18 +106,15 @@ export function ForgotOtpPage() {
     inputs.current[0]?.focus()
     if (!mock) {
       void apiRequestOtp(draft.email, 'forgot')
-        .then((res) => {
-          writeForgotDraft({ ...draft, demoCode: res.demoCode })
-          toast.message(res.demoCode ? 'Code resent' : 'Code resent', {
-            description: res.demoCode
-              ? `Demo OTP is ${res.demoCode}.`
-              : 'Check your email for a new code.',
+        .then(() => {
+          toast.message('Code resent', {
+            description: 'Check your email for a new code.',
           })
         })
         .catch((err) => reportApiError(err))
       return
     }
-    toast.message('Code resent', { description: `Demo OTP is still ${FORGOT_OTP}.` })
+    toast.message('Code resent', { description: 'Check your email for a new code.' })
   }
 
   return (
@@ -153,14 +148,6 @@ export function ForgotOtpPage() {
           ))}
         </div>
         {error && <p className="text-center text-sm text-red-500">{error}</p>}
-        {(mock || draft.demoCode) && (
-          <p className="text-center text-xs text-[#8B93A7]">
-            Demo code:{' '}
-            <span className="font-semibold text-[#5C6478]">
-              {mock ? FORGOT_OTP : draft.demoCode}
-            </span>
-          </p>
-        )}
 
         <AuthPrimaryButton disabled={submitting || code.length !== LENGTH}>
           {submitting ? (

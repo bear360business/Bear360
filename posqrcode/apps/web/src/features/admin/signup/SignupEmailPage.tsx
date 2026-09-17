@@ -25,16 +25,13 @@ export function SignupEmailPage() {
     writeSignupDraft({ email: trimmed, otpVerified: false })
     if (!mock) {
       try {
-        const res = await apiRequestOtp(trimmed, 'signup')
+        await apiRequestOtp(trimmed, 'signup')
         writeSignupDraft({
           email: trimmed,
           otpVerified: false,
-          demoCode: res.demoCode,
         })
-        toast.message(res.demoCode ? 'Demo code ready' : 'Code sent', {
-          description: res.demoCode
-            ? `Use OTP ${res.demoCode} to continue.`
-            : 'Check your email for the 4-digit code.',
+        toast.message('Code sent', {
+          description: 'Check your email for the 4-digit verification code.',
         })
       } catch (err) {
         setSubmitting(false)

@@ -209,14 +209,12 @@ export class AuthService {
       const existing = await this.prisma.user.findUnique({ where: { email } })
       if (!existing) {
         // Avoid account enumeration — still return ok.
-        return this.mail.isConfigured()
-          ? { ok: true as const }
-          : { ok: true as const, demoCode: DEMO_OTP }
+        return { ok: true as const }
       }
     }
 
     const useSmtp = this.mail.isConfigured()
-    const code = useSmtp ? String(randomInt(1000, 10000)) : DEMO_OTP
+    const code = String(randomInt(1000, 10000))
     const codeHash = await argon2.hash(code)
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
     try {
@@ -233,16 +231,14 @@ export class AuthService {
     if (useSmtp) {
       try {
         await this.mail.sendOtpEmail(email, code, input.purpose)
-        return { ok: true as const }
       } catch (err) {
         this.logger.warn(
-          `Failed to send OTP to ${email} (${err instanceof Error ? err.message : err}), providing fallback code`,
+          `Failed to send OTP to ${email} (${err instanceof Error ? err.message : err})`,
         )
-        return { ok: true as const, demoCode: code }
       }
     }
 
-    return { ok: true as const, demoCode: DEMO_OTP }
+    return { ok: true as const }
   }
 
   async verifyOtp(input: VerifyOtpInput) {
