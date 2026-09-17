@@ -45,4 +45,16 @@ async function bootstrap() {
   console.log(`OpenAPI: http://localhost:${port}/api/docs`)
 }
 
-void bootstrap()
+process.on('uncaughtException', (err) => {
+  // eslint-disable-next-line no-console
+  console.error('FATAL UNCAUGHT EXCEPTION:', err)
+})
+process.on('unhandledRejection', (reason) => {
+  // eslint-disable-next-line no-console
+  console.error('FATAL UNHANDLED REJECTION:', reason)
+})
+
+bootstrap().catch((err) => {
+  // eslint-disable-next-line no-console
+  console.error('FATAL ERROR DURING BOOTSTRAP:', err)
+})
