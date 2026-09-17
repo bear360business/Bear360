@@ -1,5 +1,6 @@
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import {
+  Banknote,
   Calculator,
   ChefHat,
   ClipboardList,
@@ -9,7 +10,6 @@ import {
   LayoutGrid,
   LifeBuoy,
   Link2,
-  Lock,
   LogOut,
   Mail,
   Package,
@@ -30,7 +30,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { BrandLogo } from '@/components/app/BrandLogo'
 import { PlanBadge } from '@/components/app/PlanBadge'
-import { useUpgrade } from '@/components/app/UpgradeDrawer'
 import { useAppearance } from '@/hooks/use-appearance'
 import { useAuth } from '@/hooks/use-auth'
 import { isLightHex } from '@/lib/color'
@@ -47,7 +46,7 @@ import { useTenant } from '@/hooks/use-tenant'
 import { useAttendance } from '@/hooks/use-staff-ops'
 import { BRAND_NAME } from '@/lib/brand'
 import { EMPTY_POS_PERMS, resolvePosPermissions, staffNavItems } from '@/lib/staff-access'
-import { PLAN_META, planFor, type FeatureKey } from '@/lib/tenant'
+import type { FeatureKey } from '@/lib/tenant'
 import { cn } from '@/lib/utils'
 
 const STAFF_NAV_ICONS: Record<string, LucideIcon> = {
@@ -83,6 +82,7 @@ export const superNav: NavSection[] = [
       { to: '/super/leads', label: 'Leads', icon: Mail },
       { to: '/super/industries', label: 'Industries', icon: LayoutGrid },
       { to: '/super/plans', label: 'Plans', icon: CreditCard },
+      { to: '/super/billing', label: 'Billing', icon: Banknote },
       { to: '/super/shop', label: 'QR stands', icon: ShoppingBag },
       { to: '/super/settings', label: 'Settings', icon: Settings },
     ],
@@ -154,7 +154,6 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
   const venue = useCurrentVenue()
   const copy = useIndustryCopy()
   const industry = useIndustryProfile()
-  const { openUpgrade } = useUpgrade()
   const { apply: applyNavConfig } = useNavConfig()
   const { orders } = useOrders()
   const { upcomingCount } = useTables()
@@ -204,16 +203,16 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
 
   // Platform controls (super admin) can hide restaurant features live.
   // Industry navHints hide modules entirely (cloud kitchen → no Tables).
-  const enabled = (to: string) => {
+  const enabled = (to: string, feature?: FeatureKey) => {
     if (industryHidden.has(to)) return false
     const key = PATH_TO_MENU_KEY[to]
     if (key && (config.menus as any)?.[key] === false) {
       return false
     }
-    return (
-      (to !== '/kitchen' || config.service.kitchenDisplay) &&
-      (to !== '/reports' || config.adminUi.showReports)
-    )
+    if (to === '/kitchen' && !config.service.kitchenDisplay) return false
+    if (to === '/reports' && !config.adminUi.showReports) return false
+    if (feature != null && !features[feature]) return false
+    return true
   }
   // Plan-gated items stay visible and locked — hiding them creates support
   // tickets and kills discovery (doc §5.2 style A). What the *owner* hides in
@@ -288,7 +287,7 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
               .map((section) => ({
                 ...section,
                 items: section.items
-                  .filter((i) => enabled(i.to) && !industryBlocked(i))
+                  .filter((i) => enabled(i.to, i.feature) && !industryBlocked(i))
                   .map((i) => relabel({ ...i, badge: liveBadge(i.to, i.badge) })),
               }))
               .filter((section) => section.items.length > 0)
@@ -367,36 +366,8 @@ export function AppSidebar({ variant, collapsed = false, onNavigate }: AppSideba
             )}
             <ul className="space-y-1">
               {section.items.map((item) => {
-                const locked = !isStaff && item.feature != null && !features[item.feature]
-                if (locked) {
-                  const needed = planFor(item.feature as FeatureKey)
-                  return (
-                    <li key={item.to}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onNavigate?.()
-                          openUpgrade(item.feature as FeatureKey)
-                        }}
-                        title={collapsed ? `${item.label} — ${PLAN_META[needed].name}` : undefined}
-                        className={cn(
-                          'relative flex h-10 w-full items-center gap-3 rounded-[10px] px-3 text-sm font-medium text-nav-muted opacity-70 transition-opacity hover:opacity-100',
-                          collapsed && 'justify-center px-0',
-                        )}
-                      >
-                        <item.icon className="nav-icon h-5 w-5 shrink-0" strokeWidth={1.75} />
-                        {!collapsed && <span className="flex-1 truncate text-left">{item.label}</span>}
-                        {!collapsed ? (
-                          <span className="flex items-center gap-1 rounded bg-nav-hover px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                            <Lock className="nav-icon h-2.5 w-2.5" />
-                            {PLAN_META[needed].short}
-                          </span>
-                        ) : (
-                          <Lock className="nav-icon absolute right-2 top-2 h-2.5 w-2.5" />
-                        )}
-                      </button>
-                    </li>
-                  )
+                if (!isStaff && item.feature != null && !features[item.feature]) {
+                  return null
                 }
                 const isExternalWebLink = item.external && item.to.startsWith('http')
                 if (isExternalWebLink) {

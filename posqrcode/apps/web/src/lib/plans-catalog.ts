@@ -173,6 +173,13 @@ export function syncPlansCatalog(plans: ManagedPlan[]) {
     if (isPlanId(p.id)) {
       features[p.id] = p.featureGrants
       limits[p.id] = p.limits
+      if (PLAN_META[p.id]) {
+        PLAN_META[p.id].name = p.name
+        PLAN_META[p.id].priceMonthly = p.priceMonthly
+        PLAN_META[p.id].priceLabel = p.priceLabel
+        if (p.tagline) PLAN_META[p.id].tagline = p.tagline
+        if (p.popular !== undefined) PLAN_META[p.id].popular = p.popular
+      }
     }
   }
   setLivePlanEntitlements(features, limits)

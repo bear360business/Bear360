@@ -195,7 +195,7 @@ export function VenueSetupPage() {
 
         <Section title="Payment options" caption="How guests settle at QR checkout.">
           <Toggle
-            label="Online payments (Razorpay)"
+            label="Online payments (UPI / Cards)"
             hint="Demo mode — guests can pick “Pay online”; no real charge."
             checked={ops.onlinePayments}
             onChange={(v) => patch({ onlinePayments: v })}

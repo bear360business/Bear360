@@ -48,6 +48,7 @@ export class PlatformService {
       },
       menus: ui.menus ?? {},
       customMenus: ui.customMenus ?? [],
+      plans: Array.isArray(flags.plans) ? flags.plans : undefined,
     }
   }
 

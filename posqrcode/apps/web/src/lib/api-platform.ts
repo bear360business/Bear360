@@ -1,10 +1,24 @@
 import { apiRequest } from '@/lib/api-client'
 
-export function apiGetPlatformConfig() {
-  return apiRequest<Record<string, unknown>>('/platform/config')
+let platformConfigCache: { promise: Promise<Record<string, unknown>>; timestamp: number } | null = null
+
+export function apiGetPlatformConfig(): Promise<Record<string, unknown>> {
+  const now = Date.now()
+  if (platformConfigCache && now - platformConfigCache.timestamp < 3000) {
+    return platformConfigCache.promise
+  }
+
+  const promise = apiRequest<Record<string, unknown>>('/platform/config').catch((err) => {
+    platformConfigCache = null
+    throw err
+  })
+
+  platformConfigCache = { promise, timestamp: now }
+  return promise
 }
 
 export function apiPutPlatformConfig(patch: Record<string, unknown>) {
+  platformConfigCache = null
   return apiRequest<Record<string, unknown>>('/platform/config', {
     method: 'PUT',
     body: patch,
@@ -51,10 +65,32 @@ export function apiSubmitLead(body: {
   return apiRequest('/public/leads', { auth: false, body })
 }
 
+let publicUiCache: { promise: Promise<any>; timestamp: number } | null = null
+
 export function apiGetPublicPlatformUi() {
-  return apiRequest<{
+  const now = Date.now()
+  if (publicUiCache && now - publicUiCache.timestamp < 3000) {
+    return publicUiCache.promise
+  }
+  const promise = apiRequest<{
     service: Record<string, boolean>
     customerUi: Record<string, boolean>
     adminUi: Record<string, boolean>
-  }>('/public/platform-ui', { auth: false })
+    plans?: Array<{
+      id: string
+      name: string
+      priceMonthly: number | null
+      priceLabel: string
+      tagline?: string
+      features?: string[]
+      popular?: boolean
+      dark?: boolean
+      archived?: boolean
+    }>
+  }>('/public/platform-ui', { auth: false }).catch((err) => {
+    publicUiCache = null
+    throw err
+  })
+  publicUiCache = { promise, timestamp: now }
+  return promise
 }

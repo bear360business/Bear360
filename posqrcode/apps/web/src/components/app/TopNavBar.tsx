@@ -3,14 +3,12 @@ import {
   Calculator,
   ClipboardList,
   ExternalLink,
-  Lock,
   UtensilsCrossed,
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
 import { BrandLogo } from '@/components/app/BrandLogo'
 import { restaurantNav, superNav } from '@/components/app/AppSidebar'
-import { useUpgrade } from '@/components/app/UpgradeDrawer'
 import { useAppearance } from '@/hooks/use-appearance'
 import { useAuth } from '@/hooks/use-auth'
 import { useNavConfig } from '@/hooks/use-nav-config'
@@ -39,7 +37,6 @@ export function TopNavBar({ variant }: TopNavBarProps) {
   const { config } = usePlatformConfig()
   const { apply } = useNavConfig()
   const { features } = useTenant()
-  const { openUpgrade } = useUpgrade()
   const { session } = useAuth()
   const { employees } = useStaff()
   const isStaff = variant === 'restaurant' && session?.role === 'staff'
@@ -83,46 +80,33 @@ export function TopNavBar({ variant }: TopNavBarProps) {
       </span>
       <span className="mx-2 h-6 w-px shrink-0 bg-nav-border" />
 
-      {items.map((item) => {
-        const locked = item.feature != null && !features[item.feature]
-        if (locked) {
+      {items
+        .filter((item) => !item.feature || features[item.feature])
+        .map((item) => {
           return (
-            <button
+            <NavLink
               key={item.to}
-              type="button"
-              onClick={() => openUpgrade(item.feature as FeatureKey)}
-              className="flex h-9 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium text-nav-muted opacity-70 transition-opacity hover:opacity-100"
+              to={item.to}
+              className={({ isActive }) =>
+                cn(
+                  'flex h-9 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors duration-200',
+                  isActive
+                    ? 'bg-brand font-semibold text-brand-foreground shadow-sm'
+                    : 'text-nav-muted hover:bg-nav-hover hover:text-nav-fg',
+                )
+              }
             >
               <item.icon className="h-4 w-4" strokeWidth={1.75} />
               {item.label}
-              <Lock className="h-3 w-3" />
-            </button>
+              {item.badge != null && item.badge > 0 && (
+                <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-brand-foreground">
+                  {item.badge}
+                </span>
+              )}
+              {item.external && <ExternalLink className="h-3 w-3 opacity-60" />}
+            </NavLink>
           )
-        }
-        return (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            className={({ isActive }) =>
-              cn(
-                'flex h-9 shrink-0 items-center gap-2 rounded-full px-4 text-sm font-medium transition-colors duration-200',
-                isActive
-                  ? 'bg-brand font-semibold text-brand-foreground shadow-sm'
-                  : 'text-nav-muted hover:bg-nav-hover hover:text-nav-fg',
-              )
-            }
-          >
-            <item.icon className="h-4 w-4" strokeWidth={1.75} />
-            {item.label}
-            {item.badge != null && item.badge > 0 && (
-              <span className="rounded-full bg-brand px-1.5 py-0.5 text-[10px] font-bold text-brand-foreground">
-                {item.badge}
-              </span>
-            )}
-            {item.external && <ExternalLink className="h-3 w-3 opacity-60" />}
-          </NavLink>
-        )
-      })}
+        })}
     </nav>
   )
 }

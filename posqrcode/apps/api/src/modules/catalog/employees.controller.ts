@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Post, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
-import { EmployeeUpsertSchema } from '@bear360/shared'
+import { EmployeeUpsertSchema, PosUnlockSchema } from '@bear360/shared'
 import { CurrentUser } from '../../common/current-user.decorator'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import type { JwtPayload } from '../auth/jwt-payload'
@@ -25,6 +25,15 @@ export class EmployeesController {
     @Body() body: unknown,
   ) {
     return this.catalog.upsertEmployee(user, restaurantId, EmployeeUpsertSchema.parse(body))
+  }
+
+  @Post('pos-unlock')
+  posUnlock(
+    @CurrentUser() user: JwtPayload,
+    @Param('restaurantId') restaurantId: string,
+    @Body() body: unknown,
+  ) {
+    return this.catalog.posUnlock(user, restaurantId, PosUnlockSchema.parse(body))
   }
 
   @Delete(':id')

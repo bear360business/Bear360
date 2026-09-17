@@ -76,7 +76,15 @@ export class BillingService {
     }
   }
 
-  /** Start Razorpay subscription checkout for a paid plan. */
+  /** Whether to use one-time Orders instead of Subscriptions (avoids recurring-card restrictions). */
+  useOrders(): boolean {
+    return this.config.get<string>('RAZORPAY_USE_ORDERS')?.trim() === 'true'
+  }
+
+  /** Start Razorpay subscription checkout for a paid plan.
+   * When RAZORPAY_USE_ORDERS=true, falls back to a one-time Razorpay Order
+   * so that any card (incl. credit cards) can be used — bypasses the
+   * "card not eligible for recurring payments" restriction in test/live. */
   async startSubscription(
     user: JwtPayload,
     input: { restaurantId: string; planId: PlanId },
@@ -100,7 +108,7 @@ export class BillingService {
       })
     }
 
-    // Downgrade / free switch without payment when Razorpay off, or basic from higher.
+    // Razorpay keys missing → demo mode (no payment).
     if (!this.isConfigured()) {
       await this.prisma.restaurant.update({
         where: { id: restaurant.id },
@@ -115,6 +123,11 @@ export class BillingService {
         planId: input.planId,
         message: 'Razorpay keys missing — plan applied in demo mode',
       }
+    }
+
+    // One-time Order mode — avoids recurring card restrictions.
+    if (this.useOrders()) {
+      return this.startOrderCheckout(user, restaurant, input.planId as 'basic' | 'professional')
     }
 
     const rzpPlanId = await this.ensureRazorpayPlan(input.planId as 'basic' | 'professional')
@@ -148,6 +161,79 @@ export class BillingService {
       planId: input.planId,
       customerId,
     }
+  }
+
+  /** Create a one-time Razorpay Order for plan activation (used when RAZORPAY_USE_ORDERS=true). */
+  private async startOrderCheckout(
+    _user: JwtPayload,
+    restaurant: { id: string; slug: string; razorpayCustomerId: string | null; ownerEmail: string; ownerName: string; phone: string },
+    planId: 'basic' | 'professional',
+  ) {
+    const amountPaise = PLAN_AMOUNTS_PAISE[planId]
+    const rzOrder = (await this.rzp().orders.create({
+      amount: amountPaise,
+      currency: 'INR',
+      receipt: `plan-${planId}-${restaurant.id}`.slice(0, 40),
+      notes: {
+        restaurantId: restaurant.id,
+        planId,
+        type: 'plan_activation',
+      },
+    })) as { id: string; amount: number; currency: string }
+
+    return {
+      mode: 'razorpay_order' as const,
+      keyId: this.keyId(),
+      orderId: rzOrder.id,
+      amount: rzOrder.amount,
+      currency: rzOrder.currency || 'INR',
+      planId,
+    }
+  }
+
+  /** Confirm a one-time Order-based plan activation. */
+  async confirmOrderCheckout(
+    user: JwtPayload,
+    input: {
+      restaurantId: string
+      planId: PlanId
+      razorpayOrderId: string
+      razorpayPaymentId: string
+      razorpaySignature: string
+    },
+  ) {
+    this.tenants.assertAccess(user, input.restaurantId)
+    const restaurant = await this.prisma.restaurant.findUnique({ where: { id: input.restaurantId } })
+    if (!restaurant) {
+      throw new NotFoundException({ code: 'NOT_FOUND', message: 'Restaurant not found' })
+    }
+
+    if (this.isConfigured()) {
+      const secret = this.config.get<string>('RAZORPAY_KEY_SECRET')?.trim()
+      if (!secret) throw new BadRequestException({ code: 'CONFIG', message: 'Razorpay secret missing' })
+      const expected = createHmac('sha256', secret)
+        .update(`${input.razorpayOrderId}|${input.razorpayPaymentId}`)
+        .digest('hex')
+      try {
+        if (!timingSafeEqual(Buffer.from(expected), Buffer.from(input.razorpaySignature))) {
+          throw new BadRequestException({ code: 'BAD_SIGNATURE', message: 'Invalid payment signature' })
+        }
+      } catch (e) {
+        if (e instanceof BadRequestException) throw e
+        throw new BadRequestException({ code: 'BAD_SIGNATURE', message: 'Invalid payment signature' })
+      }
+    }
+
+    await this.prisma.restaurant.update({
+      where: { id: restaurant.id },
+      data: {
+        planId: input.planId,
+        status: 'active',
+        subscriptionStatus: 'order_paid',
+      },
+    })
+    this.logger.log(`Order-based plan activation: ${restaurant.id} → ${input.planId}`)
+    return this.getStatus(user, input.restaurantId)
   }
 
   /** After checkout success — sync subscription status from Razorpay. */
@@ -409,6 +495,14 @@ export class BillingService {
       update: {},
     })
     const flags = (flagsRow.flags ?? {}) as Record<string, unknown>
+    const plansList = Array.isArray(flags.plans) ? flags.plans : []
+    const matchingPlan = plansList.find((p: any) => p?.id === planId)
+    const planName = String(matchingPlan?.name || PLAN_NAMES[planId])
+    const planAmountPaise =
+      typeof matchingPlan?.priceMonthly === 'number'
+        ? Math.round(matchingPlan.priceMonthly * 100)
+        : PLAN_AMOUNTS_PAISE[planId]
+
     const map = (flags.razorpayPlanIds ?? {}) as Record<string, string>
     if (map[planId]) return map[planId]
 
@@ -416,10 +510,10 @@ export class BillingService {
       period: 'monthly',
       interval: 1,
       item: {
-        name: PLAN_NAMES[planId],
-        amount: PLAN_AMOUNTS_PAISE[planId],
+        name: planName,
+        amount: planAmountPaise,
         currency: 'INR',
-        description: `${PLAN_NAMES[planId]} monthly`,
+        description: `${planName} monthly`,
       },
     })) as { id: string }
 
@@ -431,7 +525,7 @@ export class BillingService {
       where: { id: 'default' },
       data: { flags: nextFlags as Prisma.InputJsonValue },
     })
-    this.logger.log(`Created Razorpay plan ${planId}=${created.id}`)
+    this.logger.log(`Created Razorpay plan ${planId}=${created.id} (${planAmountPaise} paise)`)
     return created.id
   }
 }

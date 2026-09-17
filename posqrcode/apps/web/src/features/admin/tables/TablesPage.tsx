@@ -35,11 +35,11 @@ import { useIndustryCopy } from '@/hooks/use-industry-copy'
 import { useTables } from '@/hooks/use-tables'
 import { useTenant } from '@/hooks/use-tenant'
 import {
-  currentRestaurantId,
   getCounterQrUrl,
   getTableQrUrl,
   tableZones,
 } from '@/lib/mock'
+import { resolveDataVenueId } from '@/lib/venue-scope'
 import { downloadQrSvgAsPng } from '@/lib/qr-download'
 import { ORDER_TYPE_META, tableFreeOrderTypes } from '@/lib/service-config'
 import type { DiningTable, TableStatus, TableZone } from '@/lib/types'
@@ -55,13 +55,14 @@ export function TablesPage() {
   const { config: service, enabledOrderTypes } = useServiceConfig()
   const { tables: floor, upsertTable, removeTable, markFree, seatReservation } = useTables()
   const copy = useIndustryCopy()
+  const activeVenueId = resolveDataVenueId()
   const [filter, setFilter] = useState<Filter>('all')
   const [zoneFilter, setZoneFilter] = useState<string>('all')
   const [qrTable, setQrTable] = useState<DiningTable | null>(null)
   const [counterQrOpen, setCounterQrOpen] = useState(false)
   const tableQrSvgRef = useRef<HTMLDivElement>(null)
   const counterQrSvgRef = useRef<HTMLDivElement>(null)
-  const counterUrl = getCounterQrUrl(currentRestaurantId)
+  const counterUrl = getCounterQrUrl(activeVenueId)
   const counterTypes = tableFreeOrderTypes(enabledOrderTypes)
   const showCounterBanner =
     service.counterOrdering && counterTypes.length > 0
@@ -101,7 +102,7 @@ export function TablesPage() {
     { id: 'reserved', label: 'Reserved', count: counts.reserved },
   ]
 
-  const qrUrl = qrTable ? getTableQrUrl(currentRestaurantId, qrTable.id) : ''
+  const qrUrl = qrTable ? getTableQrUrl(activeVenueId, qrTable.id) : ''
 
   const openAdd = () => {
     if (atLimit) {
@@ -111,7 +112,7 @@ export function TablesPage() {
       })
       return
     }
-    const nextNum = Math.max(0, ...floor.map((t) => t.number)) + 1
+    const nextNum = floor.length === 0 ? 1 : Math.max(0, ...floor.map((t) => t.number)) + 1
     setForm({
       name: `T-${String(nextNum).padStart(2, '0')}`,
       seats: '4',
@@ -132,7 +133,7 @@ export function TablesPage() {
       upsertTable({ ...drawer.table, name, seats, zone: form.zone })
       toast.success(`${name} updated`)
     } else {
-      const number = Math.max(0, ...floor.map((t) => t.number)) + 1
+      const number = floor.length === 0 ? 1 : Math.max(0, ...floor.map((t) => t.number)) + 1
       const next: DiningTable = {
         id: `t-${String(number).padStart(2, '0')}`,
         name,
@@ -310,19 +311,29 @@ export function TablesPage() {
           <div className="rounded-card border border-line bg-surface shadow-card">
             <EmptyState
               icon={LayoutGrid}
-              title="No tables match"
-              description="Try a different status or zone filter."
+              title={floor.length === 0 ? 'No tables yet' : 'No tables match'}
+              description={
+                floor.length === 0
+                  ? 'Add your first table to generate its QR code.'
+                  : 'Try a different status or zone filter.'
+              }
               action={
-                <Button
-                  variant="outline"
-                  className="rounded-full"
-                  onClick={() => {
-                    setFilter('all')
-                    setZoneFilter('all')
-                  }}
-                >
-                  Clear filters
-                </Button>
+                floor.length === 0 ? (
+                  <Button className="rounded-full font-semibold" disabled={readOnly} onClick={openAdd}>
+                    <Plus className="mr-1.5 h-4 w-4" /> Add table
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() => {
+                      setFilter('all')
+                      setZoneFilter('all')
+                    }}
+                  >
+                    Clear filters
+                  </Button>
+                )
               }
             />
           </div>

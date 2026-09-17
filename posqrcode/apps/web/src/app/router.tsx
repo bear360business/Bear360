@@ -18,6 +18,7 @@ import { SuperSettingsPage } from '@/features/super/settings/SuperSettingsPage'
 import { SuperSupportPage } from '@/features/super/support/SuperSupportPage'
 import { SuperLeadsPage } from '@/features/super/leads/SuperLeadsPage'
 import { SuperShopPage } from '@/features/super/shop/SuperShopPage'
+import { SuperBillingPage } from '@/features/super/billing/SuperBillingPage'
 
 import { LoginPage } from '@/features/admin/login/LoginPage'
 import { StaffLoginPage } from '@/features/admin/login/StaffLoginPage'
@@ -128,6 +129,7 @@ export const router = createBrowserRouter([
       { path: 'leads', element: <SuperLeadsPage /> },
       { path: 'industries', element: <IndustriesPage /> },
       { path: 'plans', element: <PlansPage /> },
+      { path: 'billing', element: <SuperBillingPage /> },
       { path: 'shop', element: <SuperShopPage /> },
       { path: 'settings', element: <SuperSettingsPage /> },
     ],

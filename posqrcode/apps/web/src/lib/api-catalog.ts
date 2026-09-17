@@ -46,7 +46,7 @@ export function apiListTables(restaurantId: string) {
 }
 
 export function apiUpsertTable(restaurantId: string, table: DiningTable) {
-  return apiRequest(`/restaurants/${restaurantId}/tables`, { body: table })
+  return apiRequest<DiningTable>(`/restaurants/${restaurantId}/tables`, { body: table })
 }
 
 export function apiRemoveTable(restaurantId: string, id: string) {
@@ -55,6 +55,13 @@ export function apiRemoveTable(restaurantId: string, id: string) {
 
 export function apiListEmployees(restaurantId: string) {
   return apiRequest<Employee[]>(`/restaurants/${restaurantId}/employees`)
+}
+
+export function apiPosUnlock(restaurantId: string, phone: string, pin: string) {
+  return apiRequest<Employee & { posPermissions: Record<string, boolean> }>(
+    `/restaurants/${restaurantId}/employees/pos-unlock`,
+    { body: { phone, pin } },
+  )
 }
 
 export function apiUpsertEmployee(

@@ -118,13 +118,25 @@ export function TablesProvider({ children }: { children: ReactNode }) {
   const upsertTable = useCallback(
     (table: DiningTable) => {
       setTables((prev) => {
-        const i = prev.findIndex((t) => t.id === table.id)
+        const i = prev.findIndex((t) => t.id === table.id || t.number === table.number)
         if (i < 0) return [...prev, table]
         const next = [...prev]
         next[i] = table
         return next
       })
-      if (!mock) void apiUpsertTable(venueId, table).catch((err) => reportApiError(err))
+      if (!mock) {
+        void apiUpsertTable(venueId, table)
+          .then((saved) => {
+            if (saved && saved.id) {
+              setTables((prev) =>
+                prev.map((t) =>
+                  t.id === table.id || t.number === saved.number ? { ...t, ...saved } : t,
+                ),
+              )
+            }
+          })
+          .catch((err) => reportApiError(err))
+      }
     },
     [mock, venueId],
   )

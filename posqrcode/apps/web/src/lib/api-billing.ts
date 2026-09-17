@@ -24,6 +24,14 @@ export type SubscribeResult =
       planId: PlanId
       customerId: string
     }
+  | {
+      mode: 'razorpay_order'
+      keyId: string
+      orderId: string
+      amount: number
+      currency: string
+      planId: PlanId
+    }
 
 export type GuestPayCreateResult =
   | {
@@ -59,6 +67,16 @@ export function apiConfirmSubscription(
   return apiRequest<BillingStatus>('/billing/confirm', {
     body: { restaurantId, subscriptionId, paymentId },
   })
+}
+
+export function apiConfirmOrderCheckout(input: {
+  restaurantId: string
+  planId: PlanId
+  razorpayOrderId: string
+  razorpayPaymentId: string
+  razorpaySignature: string
+}) {
+  return apiRequest<BillingStatus>('/billing/confirm-order', { body: input })
 }
 
 export function apiCreateGuestPay(input: {

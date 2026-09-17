@@ -59,25 +59,35 @@ type RequestOpts = {
   _retry?: boolean
 }
 
+let refreshPromise: Promise<boolean> | null = null
+
 async function tryRefresh(): Promise<boolean> {
-  const refreshToken = getRefreshToken()
-  if (!refreshToken) return false
-  try {
-    const res = await fetch(`${apiBaseUrl()}/auth/refresh`, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
-    })
-    if (!res.ok) return false
-    const data = (await res.json()) as {
-      tokens?: { accessToken: string; refreshToken: string }
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    const refreshToken = getRefreshToken()
+    if (!refreshToken) return false
+    try {
+      const res = await fetch(`${apiBaseUrl()}/auth/refresh`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      })
+      if (!res.ok) return false
+      const data = (await res.json()) as {
+        tokens?: { accessToken: string; refreshToken: string }
+      }
+      if (!data.tokens?.accessToken || !data.tokens.refreshToken) return false
+      setTokens(data.tokens.accessToken, data.tokens.refreshToken)
+      return true
+    } catch {
+      return false
+    } finally {
+      refreshPromise = null
     }
-    if (!data.tokens?.accessToken || !data.tokens.refreshToken) return false
-    setTokens(data.tokens.accessToken, data.tokens.refreshToken)
-    return true
-  } catch {
-    return false
-  }
+  })()
+
+  return refreshPromise
 }
 
 export async function apiRequest<T>(path: string, opts: RequestOpts = {}): Promise<T> {
@@ -97,27 +107,22 @@ export async function apiRequest<T>(path: string, opts: RequestOpts = {}): Promi
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   })
 
-  if (res.status === 401 && opts.auth !== false && !opts._retry) {
-    const refreshed = await tryRefresh()
-    if (refreshed) {
-      return apiRequest<T>(path, { ...opts, _retry: true })
+  if (res.status === 401 && opts.auth !== false) {
+    if (!opts._retry) {
+      const refreshed = await tryRefresh()
+      if (refreshed) {
+        return apiRequest<T>(path, { ...opts, _retry: true })
+      }
     }
     const hadToken = !!getAccessToken() || !!getRefreshToken()
-    try {
-      localStorage.removeItem('bearqr:session')
-    } catch {}
-    clearTokens()
-    if (hadToken && typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('bearqr:auth-changed'))
-    }
-  } else if (res.status === 401 && opts.auth !== false && opts._retry) {
-    const hadToken = !!getAccessToken() || !!getRefreshToken()
-    try {
-      localStorage.removeItem('bearqr:session')
-    } catch {}
-    clearTokens()
-    if (hadToken && typeof window !== 'undefined') {
-      window.dispatchEvent(new Event('bearqr:auth-changed'))
+    if (hadToken) {
+      clearTokens()
+      try {
+        localStorage.removeItem('bearqr:session')
+      } catch {}
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('bearqr:auth-changed'))
+      }
     }
   }
 

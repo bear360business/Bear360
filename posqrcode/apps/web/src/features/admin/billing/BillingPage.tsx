@@ -12,6 +12,8 @@ import { StatusBadge } from '@/components/app/StatusBadge'
 import { usePlans } from '@/hooks/use-plans'
 import { useStaff } from '@/hooks/use-staff'
 import { useTenant } from '@/hooks/use-tenant'
+import { useCurrentVenue } from '@/hooks/use-restaurants'
+import { useAuth } from '@/hooks/use-auth'
 import { useBillingInvoices } from '@/hooks/use-billing-invoices'
 import { apiBillingStatus } from '@/lib/api-billing'
 import { inr } from '@/lib/currency'
@@ -54,6 +56,8 @@ export function BillingPage() {
   const { openUpgrade } = useUpgrade()
   const { start: startCheckout } = usePlanCheckout()
   const { invoices, appendForPlan } = useBillingInvoices()
+  const { session } = useAuth()
+  const venue = useCurrentVenue()
   const mock = useMockData()
   const venueId = resolveDataVenueId()
   const [busyPlan, setBusyPlan] = useState<PlanId | null>(null)
@@ -98,20 +102,25 @@ export function BillingPage() {
         restaurantId: venueId,
         planId: next,
         planName: PLAN_META[next].name,
+        prefill: {
+          name: session?.staffName ?? venue?.ownerName ?? venue?.name,
+          email: session?.email ?? venue?.ownerEmail,
+          contact: venue?.phone,
+        },
         onDemoApplied: (planId) => {
           setPlan(planId)
           appendForPlan(planId)
           toast.success(`Switched to ${PLAN_META[planId].name}`, {
             description: rzConfigured
               ? undefined
-              : 'Razorpay keys not set — applied in demo mode. Add RAZORPAY_KEY_ID / SECRET to enable real billing.',
+              : 'Payment keys not set — applied in demo mode.',
           })
         },
         onActivated: (planId) => {
           setPlan(planId)
           appendForPlan(planId)
           toast.success(`Subscribed to ${PLAN_META[planId].name}`, {
-            description: 'Razorpay subscription activated.',
+            description: 'Plan activated successfully.',
           })
         },
       })
@@ -158,11 +167,19 @@ export function BillingPage() {
                   )}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {subStatus
-                    ? `Subscription: ${subStatus}`
-                    : config.status === 'trial'
-                      ? `Trial ends ${config.renewsOn} (${config.trialDaysLeft} ${config.trialDaysLeft === 1 ? 'day' : 'days'} left)`
-                      : `Renews ${config.renewsOn} · ${rzConfigured ? 'Razorpay' : 'demo billing'}`}
+                  {subStatus === 'created'
+                    ? 'Subscription setup initiated · Payment pending'
+                    : subStatus === 'active' || subStatus === 'authenticated'
+                      ? `Active subscription · Renews ${config.renewsOn}`
+                      : subStatus === 'cancelled'
+                        ? 'Subscription cancelled'
+                        : subStatus === 'halted'
+                          ? 'Subscription halted · Action required'
+                          : subStatus
+                            ? `Subscription: ${subStatus}`
+                            : config.status === 'trial'
+                              ? `Trial ends ${config.renewsOn} (${config.trialDaysLeft} ${config.trialDaysLeft === 1 ? 'day' : 'days'} left)`
+                              : `Renews ${config.renewsOn}`}
                 </p>
               </div>
               {config.planId !== 'enterprise' && (
@@ -183,12 +200,12 @@ export function BillingPage() {
               <CreditCard className="h-5 w-5 text-muted-foreground" />
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium">
-                  {rzConfigured ? 'Razorpay Subscriptions' : 'Demo billing (no Razorpay keys)'}
+                  {rzConfigured ? 'Online Payments' : 'Demo billing'}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {rzConfigured
-                    ? 'Cards / UPI via Razorpay Checkout'
-                    : 'Add RAZORPAY_KEY_ID + SECRET in apps/api/.env'}
+                    ? 'Cards / UPI via secure checkout'
+                    : 'Add payment keys in apps/api/.env'}
                 </p>
               </div>
             </div>
@@ -207,8 +224,10 @@ export function BillingPage() {
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Opening checkout…
                 </>
+              ) : subStatus === 'created' ? (
+                'Complete payment setup'
               ) : (
-                'Change plan via Razorpay'
+                'Change plan'
               )}
             </Button>
           </CardContent>

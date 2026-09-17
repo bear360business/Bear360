@@ -54,6 +54,7 @@ export function SideMenuControl() {
         .filter((item) => {
           if (industryHidden.has(item.to)) return false
           if (item.feature != null && industry.featureDefaults[item.feature] === false) return false
+          if (item.feature != null && !features[item.feature]) return false
           
           const key = PATH_TO_MENU_KEY[item.to]
           if (key && (platform.menus as any)?.[key] === false) {

@@ -1,7 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ImagePlus, Search, Trash2, UtensilsCrossed } from 'lucide-react'
+import {
+  Camera,
+  ImagePlus,
+  Search,
+  Trash2,
+  Upload,
+  UtensilsCrossed,
+} from 'lucide-react'
+import { CameraCaptureDialog } from '@/components/app/CameraCaptureDialog'
+import { compressImage } from '@/lib/image'
 import { AdminMenuItemCard } from '@/components/app/MenuItemCard'
 import { EmptyState } from '@/components/app/EmptyState'
 import { LoadingSkeleton } from '@/components/app/LoadingSkeleton'
@@ -81,7 +90,9 @@ export function MenuPage() {
     item: null,
   })
   const [form, setForm] = useState<FormState>(() => emptyForm(categories[0]?.id ?? ''))
-  const fileRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const [cameraDialogOpen, setCameraDialogOpen] = useState(false)
 
   const sortedCategories = useMemo(
     () => [...categories].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -130,19 +141,24 @@ export function MenuPage() {
     setDrawer({ open: true, item })
   }
 
-  const onPickImage = (file: File | null) => {
+  const handleProcessImage = async (file: File | null) => {
     if (!file) return
     if (!file.type.startsWith('image/')) {
       toast.error('Choose an image file')
       return
     }
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        setForm((f) => ({ ...f, image: reader.result as string }))
-      }
+    try {
+      const compressed = await compressImage(file, 1280)
+      setForm((f) => ({ ...f, image: compressed }))
+      toast.success('Dish photo added')
+    } catch {
+      toast.error('Could not process photo')
     }
-    reader.readAsDataURL(file)
+  }
+
+  const handleCameraCapture = (dataUrl: string) => {
+    setForm((f) => ({ ...f, image: dataUrl }))
+    toast.success('Dish photo captured')
   }
 
   const save = () => {
@@ -338,28 +354,133 @@ export function MenuPage() {
           </SheetHeader>
 
           <div className="flex-1 space-y-4 py-6">
+            {/* Hidden file and native mobile camera inputs */}
             <input
-              ref={fileRef}
+              ref={galleryInputRef}
               type="file"
               accept="image/*"
               className="hidden"
-              onChange={(e) => onPickImage(e.target.files?.[0] ?? null)}
+              onChange={(e) => {
+                void handleProcessImage(e.target.files?.[0] ?? null)
+                e.target.value = ''
+              }}
             />
-            <button
-              type="button"
-              disabled={readOnly}
-              onClick={() => fileRef.current?.click()}
-              className="relative flex aspect-video w-full flex-col items-center justify-center gap-2 overflow-hidden rounded-xl border-2 border-dashed border-line text-muted-foreground transition-colors hover:border-brand hover:text-foreground"
-            >
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              className="hidden"
+              onChange={(e) => {
+                void handleProcessImage(e.target.files?.[0] ?? null)
+                e.target.value = ''
+              }}
+            />
+
+            {/* Live Camera Viewfinder Dialog */}
+            <CameraCaptureDialog
+              open={cameraDialogOpen}
+              onClose={() => setCameraDialogOpen(false)}
+              onCapture={handleCameraCapture}
+              onFallbackNativeCamera={() => cameraInputRef.current?.click()}
+            />
+
+            {/* Dish Photo Box */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="text-xs font-semibold">Dish Photo (16:9)</Label>
+                {form.image && (
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, image: '' }))}
+                    className="text-[11px] font-medium text-danger hover:underline flex items-center gap-1"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                    Remove photo
+                  </button>
+                )}
+              </div>
+
               {form.image ? (
-                <img src={form.image} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                <div className="group relative aspect-video w-full overflow-hidden rounded-xl border border-line bg-surface shadow-sm">
+                  <img
+                    src={form.image}
+                    alt="Dish preview"
+                    className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  {/* Floating Action Buttons for quick retake or change */}
+                  <div className="absolute inset-0 flex items-center justify-center gap-2 bg-black/45 opacity-0 backdrop-blur-[2px] transition-opacity group-hover:opacity-100 p-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function') {
+                          setCameraDialogOpen(true)
+                        } else {
+                          cameraInputRef.current?.click()
+                        }
+                      }}
+                      className="rounded-full bg-white text-ink-900 text-xs font-semibold hover:bg-white/90 shadow-md"
+                    >
+                      <Camera className="mr-1.5 h-3.5 w-3.5 text-brand" />
+                      Retake with Camera
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="rounded-full bg-white/95 text-ink-900 text-xs font-semibold hover:bg-white shadow-md border-none"
+                    >
+                      <Upload className="mr-1.5 h-3.5 w-3.5" />
+                      Choose File
+                    </Button>
+                  </div>
+                </div>
               ) : (
-                <>
-                  <ImagePlus className="h-6 w-6" />
-                  <span className="text-xs font-medium">Upload image (16:9)</span>
-                </>
+                <div className="flex flex-col gap-3 rounded-2xl border-2 border-dashed border-line bg-surface-muted/30 p-4 transition-colors hover:border-brand/60">
+                  <div className="py-2 text-center">
+                    <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-xl bg-brand/10 text-brand">
+                      <ImagePlus className="h-5 w-5" />
+                    </div>
+                    <p className="text-xs font-semibold text-foreground">Add dish photo (16:9)</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      Use camera on phone/tablet or upload from gallery
+                    </p>
+                  </div>
+
+                  {/* Dual Action Buttons for Camera vs Gallery */}
+                  <div className="grid grid-cols-2 gap-2 pt-1">
+                    <Button
+                      type="button"
+                      disabled={readOnly}
+                      onClick={() => {
+                        if (typeof navigator !== 'undefined' && typeof navigator.mediaDevices?.getUserMedia === 'function') {
+                          setCameraDialogOpen(true)
+                        } else {
+                          cameraInputRef.current?.click()
+                        }
+                      }}
+                      className="h-10 rounded-xl bg-brand text-brand-foreground text-xs font-semibold shadow-sm hover:opacity-95"
+                    >
+                      <Camera className="mr-1.5 h-4 w-4" />
+                      Take Photo
+                    </Button>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={readOnly}
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="h-10 rounded-xl border-line text-xs font-semibold hover:bg-surface hover:text-foreground"
+                    >
+                      <Upload className="mr-1.5 h-4 w-4 text-muted-foreground" />
+                      Upload File
+                    </Button>
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

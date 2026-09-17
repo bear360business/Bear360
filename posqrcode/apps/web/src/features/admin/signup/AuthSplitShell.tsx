@@ -130,7 +130,7 @@ export function AuthSplitShell({
           </span>
         </div>
 
-        <div className="w-full max-w-[420px] overflow-hidden rounded-[22px] border border-[#E8ECF2] bg-white p-8 shadow-[0_18px_50px_-28px_rgba(26,29,38,0.35)] sm:p-10">
+        <div className="w-full max-w-[420px] rounded-[22px] border border-[#E8ECF2] bg-white p-8 shadow-[0_18px_50px_-28px_rgba(26,29,38,0.35)] sm:p-10">
           {children}
         </div>
 

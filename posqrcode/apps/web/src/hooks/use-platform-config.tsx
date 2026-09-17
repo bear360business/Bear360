@@ -73,14 +73,19 @@ export function PlatformConfigProvider({ children }: { children: ReactNode }) {
     let cancelled = false
     const load = async () => {
       try {
-        if (getAccessToken() && isSuperAdmin()) {
-          const flags = await apiGetPlatformConfig()
-          if (cancelled) return
-          if (flags.platformUi) {
-            const next = mergePlatformConfig(flags.platformUi)
-            writeStored(next)
-            setConfig(next)
-            return
+        const token = getAccessToken()
+        if (token && isSuperAdmin()) {
+          try {
+            const flags = await apiGetPlatformConfig()
+            if (cancelled) return
+            if (flags?.platformUi) {
+              const next = mergePlatformConfig(flags.platformUi)
+              writeStored(next)
+              setConfig(next)
+              return
+            }
+          } catch {
+            // failed super admin config fetch, fallback to public ui
           }
         }
         const ui = await apiGetPublicPlatformUi()

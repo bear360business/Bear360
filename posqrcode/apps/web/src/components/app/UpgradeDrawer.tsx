@@ -93,7 +93,7 @@ function UpgradeDrawer({
           setPlan(planId)
           appendForPlan(planId)
           toast.success(`Upgraded to ${PLAN_META[planId].name}`, {
-            description: 'Applied in demo mode (Razorpay keys not set).',
+            description: 'Applied in demo mode.',
           })
         },
         onActivated: (planId) => {
@@ -169,7 +169,7 @@ function UpgradeDrawer({
             <p className="rounded-card bg-surface-muted p-3 text-sm">
               <span className="font-semibold tabular-nums">+{inr(delta)}/mo</span>{' '}
               <span className="text-muted-foreground">
-                · paid via Razorpay Subscriptions (cards / UPI).
+                · billed monthly via secure checkout.
               </span>
             </p>
           )}
@@ -180,7 +180,7 @@ function UpgradeDrawer({
             {busy ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Opening Razorpay…
+                Opening checkout…
               </>
             ) : (
               <>

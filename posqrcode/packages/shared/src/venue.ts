@@ -61,8 +61,8 @@ export type MenuItemUpsertInput = z.infer<typeof MenuItemUpsertSchema>
 export const DiningTableSchema = z.object({
   id: z.string().optional(),
   name: z.string().min(1),
-  number: z.number().int().positive(),
-  seats: z.number().int().positive().default(4),
+  number: z.coerce.number().int().positive().optional(),
+  seats: z.coerce.number().int().positive().default(4),
   status: z.enum(['free', 'occupied', 'reserved']).default('free'),
   zone: z.string().default('Main'),
   activeOrderId: z.string().nullable().optional(),
@@ -128,3 +128,11 @@ export const PurchaseCreateSchema = z.object({
   note: z.string().optional(),
 })
 export type PurchaseCreateInput = z.infer<typeof PurchaseCreateSchema>
+
+export const PosUnlockSchema = z.object({
+  /** Last 10 digits of the staff mobile number. */
+  phone: z.string().min(4),
+  /** 4-6 digit numeric PIN set by admin in Staff → POS Staff. */
+  pin: z.string().regex(/^\d{4,6}$/),
+})
+export type PosUnlockInput = z.infer<typeof PosUnlockSchema>

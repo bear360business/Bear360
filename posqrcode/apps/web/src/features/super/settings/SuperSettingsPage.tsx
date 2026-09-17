@@ -480,15 +480,33 @@ export function SuperSettingsPage() {
                   <Label>Trial Access Mode</Label>
                   <Select
                     value={draft.freeTrialPolicy?.accessLevel ?? 'full'}
-                    onValueChange={(v) =>
+                    onValueChange={(v) => {
+                      const isFull = v === 'full'
+                      const allOn = {
+                        qrOrdering: true,
+                        pos: true,
+                        kitchen: true,
+                        tables: true,
+                        inventory: true,
+                        staff: true,
+                        scheduler: true,
+                        payroll: true,
+                        reportsBasic: true,
+                        reportsAdvanced: true,
+                        reportsCustom: true,
+                        ai: true,
+                        multiBranch: true,
+                        export: true,
+                      }
                       patch((prev) => ({
                         ...prev,
                         freeTrialPolicy: {
                           ...prev.freeTrialPolicy,
                           accessLevel: v as any,
+                          trialFeatures: isFull ? allOn : (prev.freeTrialPolicy?.trialFeatures ?? allOn),
                         },
                       }))
-                    }
+                    }}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -524,12 +542,84 @@ export function SuperSettingsPage() {
 
               <div className="my-6 h-px bg-line" />
 
-              <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-                Free Trial Feature Access Matrix
-              </h4>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Select which modules and menus are enabled during the free trial period.
-              </p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                    Free Trial Feature Access Matrix
+                  </h4>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Select which modules and menus are enabled during the free trial period.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs font-semibold"
+                    onClick={() => {
+                      const allOn = {
+                        qrOrdering: true,
+                        pos: true,
+                        kitchen: true,
+                        tables: true,
+                        inventory: true,
+                        staff: true,
+                        scheduler: true,
+                        payroll: true,
+                        reportsBasic: true,
+                        reportsAdvanced: true,
+                        reportsCustom: true,
+                        ai: true,
+                        multiBranch: true,
+                        export: true,
+                      }
+                      patch((prev) => ({
+                        ...prev,
+                        freeTrialPolicy: {
+                          ...prev.freeTrialPolicy,
+                          trialFeatures: allOn,
+                        },
+                      }))
+                    }}
+                  >
+                    Enable All
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground"
+                    onClick={() => {
+                      const allOff = {
+                        qrOrdering: false,
+                        pos: false,
+                        kitchen: false,
+                        tables: false,
+                        inventory: false,
+                        staff: false,
+                        scheduler: false,
+                        payroll: false,
+                        reportsBasic: false,
+                        reportsAdvanced: false,
+                        reportsCustom: false,
+                        ai: false,
+                        multiBranch: false,
+                        export: false,
+                      }
+                      patch((prev) => ({
+                        ...prev,
+                        freeTrialPolicy: {
+                          ...prev.freeTrialPolicy,
+                          trialFeatures: allOff,
+                        },
+                      }))
+                    }}
+                  >
+                    Disable All
+                  </Button>
+                </div>
+              </div>
 
               <ul className="mt-3 divide-y divide-line grid gap-x-6 sm:grid-cols-2">
                 {[

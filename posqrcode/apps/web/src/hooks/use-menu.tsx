@@ -183,7 +183,17 @@ export function MenuProvider({ children }: { children: ReactNode }) {
         while (prev.some((c) => c.id === unique)) unique = `${slugify(category.name)}-${n++}`
         return [...prev, { ...category, id: unique }].sort((a, b) => a.sortOrder - b.sortOrder)
       })
-      if (!mock) void apiUpsertCategory(venueId, category).catch((err) => reportApiError(err))
+      if (!mock) {
+        void apiUpsertCategory(venueId, category)
+          .then((saved: any) => {
+            if (saved && saved.id) {
+              setCategories((prev) =>
+                prev.map((c) => (c.id === category.id ? { ...c, ...saved } : c)),
+              )
+            }
+          })
+          .catch((err) => reportApiError(err))
+      }
     },
     [mock, venueId],
   )
@@ -213,7 +223,21 @@ export function MenuProvider({ children }: { children: ReactNode }) {
         next[idx] = item
         return next
       })
-      if (!mock) void apiUpsertMenuItem(venueId, item).catch((err) => reportApiError(err))
+      if (!mock) {
+        void apiUpsertMenuItem(venueId, item)
+          .then((saved: any) => {
+            if (saved && saved.id) {
+              setItems((prev) =>
+                prev.map((i) =>
+                  i.id === item.id
+                    ? { ...i, ...saved, price: Number(saved.price ?? i.price) }
+                    : i,
+                ),
+              )
+            }
+          })
+          .catch((err) => reportApiError(err))
+      }
     },
     [mock, venueId],
   )

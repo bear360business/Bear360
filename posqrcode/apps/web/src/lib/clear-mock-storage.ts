@@ -2,7 +2,7 @@
  * Wipe stale mock/local catalog caches so API mode never boots from fixtures.
  * Keeps auth + active venue id so refresh stays logged in.
  */
-const CLEAR_FLAG = 'bearqr:mock-cleared-v3'
+const CLEAR_FLAG = 'bearqr:mock-cleared-v5'
 
 const KEEP_KEYS = new Set([
   CLEAR_FLAG,

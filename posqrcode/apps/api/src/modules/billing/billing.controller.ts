@@ -66,6 +66,35 @@ export class BillingController {
     })
   }
 
+  @Post('confirm-order')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  confirmOrder(
+    @CurrentUser() user: JwtPayload,
+    @Body()
+    body: {
+      restaurantId?: string
+      planId?: string
+      razorpayOrderId?: string
+      razorpayPaymentId?: string
+      razorpaySignature?: string
+    },
+  ) {
+    if (!body.restaurantId || !body.planId || !body.razorpayOrderId || !body.razorpayPaymentId || !body.razorpaySignature) {
+      throw new BadRequestException({
+        code: 'VALIDATION',
+        message: 'restaurantId, planId, razorpayOrderId, razorpayPaymentId, razorpaySignature required',
+      })
+    }
+    return this.billing.confirmOrderCheckout(user, {
+      restaurantId: body.restaurantId,
+      planId: body.planId as any,
+      razorpayOrderId: body.razorpayOrderId,
+      razorpayPaymentId: body.razorpayPaymentId,
+      razorpaySignature: body.razorpaySignature,
+    })
+  }
+
   @Post('pay/create')
   createPay(
     @Body()

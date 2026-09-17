@@ -27,6 +27,7 @@ export type OrderLine = z.infer<typeof OrderLineSchema>
 export const CreateOrderSchema = z.object({
   restaurantId: z.string().min(1),
   tableId: z.string().optional(),
+  tableName: z.string().optional(),
   type: OrderTypeSchema.default('dine-in'),
   channel: z.string().default('qr'),
   lines: z.array(OrderLineSchema).min(1),
@@ -47,13 +48,27 @@ export const UpdateOrderStatusSchema = z.object({
 })
 export type UpdateOrderStatusInput = z.infer<typeof UpdateOrderStatusSchema>
 
+export const UpdateOrderSchema = z.object({
+  lines: z.array(OrderLineSchema).optional(),
+  type: OrderTypeSchema.optional(),
+  tableId: z.string().nullable().optional(),
+  tableName: z.string().nullable().optional(),
+  guestName: z.string().nullable().optional(),
+  guestPhone: z.string().nullable().optional(),
+  notes: z.string().nullable().optional(),
+  paymentMethod: z.string().nullable().optional(),
+  paid: z.boolean().optional(),
+  status: OrderStatusSchema.optional(),
+})
+export type UpdateOrderInput = z.infer<typeof UpdateOrderSchema>
+
 /** Allowed transitions for the server status machine. */
 export const ORDER_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  pending: ['preparing', 'cancelled', 'void'],
-  preparing: ['ready', 'cancelled', 'void'],
-  ready: ['served', 'paid', 'void'],
-  served: ['paid', 'void'],
-  paid: [],
+  pending: ['preparing', 'ready', 'served', 'paid', 'cancelled', 'void'],
+  preparing: ['ready', 'served', 'paid', 'cancelled', 'void'],
+  ready: ['served', 'paid', 'void', 'cancelled'],
+  served: ['paid', 'void', 'cancelled'],
+  paid: ['void', 'cancelled'],
   cancelled: [],
   void: [],
 }
@@ -67,6 +82,7 @@ export const OrderDtoSchema = z.object({
   number: z.string(),
   restaurantId: z.string(),
   tableId: z.string().nullable(),
+  tableName: z.string().nullable().optional(),
   type: OrderTypeSchema,
   channel: z.string(),
   status: OrderStatusSchema,

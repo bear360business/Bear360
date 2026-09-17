@@ -1,4 +1,4 @@
-import { MoreVertical, Phone } from 'lucide-react'
+import { CheckCircle2, MoreVertical, Phone, Trash2, UserX } from 'lucide-react'
 import { StatusBadge } from '@/components/app/StatusBadge'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
@@ -17,7 +17,9 @@ export interface EmployeeCardProps {
   employee: Employee
   readOnly?: boolean
   onEdit?: (employee: Employee) => void
+  onActivate?: (employee: Employee) => void
   onDeactivate?: (employee: Employee) => void
+  onDelete?: (employee: Employee) => void
   className?: string
 }
 
@@ -26,10 +28,13 @@ export function EmployeeCard({
   employee,
   readOnly,
   onEdit,
+  onActivate,
   onDeactivate,
+  onDelete,
   className,
 }: EmployeeCardProps) {
   const role = getRole(employee.roleId)
+  const isInactive = employee.status === 'inactive'
 
   return (
     <div
@@ -72,12 +77,33 @@ export function EmployeeCard({
                   Edit employee
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                {isInactive ? (
+                  <DropdownMenuItem
+                    disabled={readOnly}
+                    className="text-emerald-500 focus:text-emerald-500 font-medium"
+                    onSelect={() => onActivate?.(employee)}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-500" />
+                    Activate again
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    disabled={readOnly}
+                    className="text-muted-foreground focus:text-foreground"
+                    onSelect={() => onDeactivate?.(employee)}
+                  >
+                    <UserX className="mr-2 h-4 w-4" />
+                    Deactivate
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
                 <DropdownMenuItem
-                  disabled={readOnly || employee.status === 'inactive'}
-                  className="text-danger focus:text-danger"
-                  onSelect={() => onDeactivate?.(employee)}
+                  disabled={readOnly}
+                  className="text-danger focus:text-danger font-medium"
+                  onSelect={() => onDelete?.(employee)}
                 >
-                  Deactivate
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete employee
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -107,19 +107,52 @@ export class AuthService {
   }
 
   async refresh(refreshToken: string): Promise<AuthSessionResponse> {
+    const accessSecret = this.config.get<string>('JWT_ACCESS_SECRET') ?? 'dev'
+
+    // 1. Staff session refresh support via staff JWT verification
+    try {
+      const decoded = this.jwt.verify<JwtPayload>(refreshToken, {
+        secret: accessSecret,
+        ignoreExpiration: true,
+      })
+      if (decoded && (decoded.role === 'staff' || decoded.sub.startsWith('staff:'))) {
+        const empId = decoded.employeeId ?? decoded.sub.replace(/^staff:/, '')
+        const emp = await this.prisma.employee.findUnique({ where: { id: empId } })
+        if (!emp || emp.status === 'inactive' || emp.active === false) {
+          throw new UnauthorizedException({ code: 'STAFF_INACTIVE', message: 'Staff member is inactive' })
+        }
+        const perms = (emp.posPermissions ?? {}) as Record<string, boolean>
+        return this.issueSession({
+          sub: `staff:${emp.id}`,
+          role: 'staff',
+          restaurantIds: [emp.restaurantId],
+          employeeId: emp.id,
+          staffName: emp.name,
+          email: null,
+          posPermissions: {
+            posTerminal: Boolean(perms.posTerminal),
+            orders: Boolean(perms.orders),
+            menu: Boolean(perms.menu),
+            expenses: Boolean(perms.expenses),
+          },
+        })
+      }
+    } catch {
+      // Not a valid staff token, proceed to user refresh token check
+    }
+
+    // 2. User refresh token check
     const tokenHash = hashToken(refreshToken)
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash },
       include: { user: { include: { memberships: true } } },
     })
-    if (!stored || stored.revokedAt || stored.expiresAt < new Date()) {
+    if (!stored) {
       throw new UnauthorizedException({ code: 'INVALID_REFRESH', message: 'Refresh token invalid' })
     }
-
-    await this.prisma.refreshToken.update({
-      where: { id: stored.id },
-      data: { revokedAt: new Date() },
-    })
+    if (stored.expiresAt < new Date()) {
+      throw new UnauthorizedException({ code: 'EXPIRED_REFRESH', message: 'Refresh token expired' })
+    }
 
     const user = stored.user
     let restaurantIds = user.memberships.map((m) => m.restaurantId)
@@ -127,6 +160,27 @@ export class AuthService {
       const all = await this.prisma.restaurant.findMany({ select: { id: true } })
       restaurantIds = all.map((r) => r.id)
     }
+
+    // 3. Grace period check: allow concurrent requests arriving within 30s of token rotation
+    if (stored.revokedAt) {
+      const gracePeriodMs = 30 * 1000
+      if (Date.now() - stored.revokedAt.getTime() > gracePeriodMs) {
+        throw new UnauthorizedException({ code: 'REVOKED_REFRESH', message: 'Refresh token revoked' })
+      }
+      return this.issueSession({
+        sub: user.id,
+        role: user.role,
+        restaurantIds,
+        email: user.email,
+      })
+    }
+
+    // 4. Mark token as revoked and issue fresh session
+    await this.prisma.refreshToken.update({
+      where: { id: stored.id },
+      data: { revokedAt: new Date() },
+    })
+
     return this.issueSession({
       sub: user.id,
       role: user.role,
@@ -291,8 +345,9 @@ export class AuthService {
       }
     },
   ): Promise<AuthSessionResponse> {
-    const accessTtl = this.config.get<string>('JWT_ACCESS_TTL') ?? '15m'
-    const refreshTtl = this.config.get<string>('JWT_REFRESH_TTL') ?? '7d'
+    const isStaff = payload.sub.startsWith('staff:') || payload.role === 'staff'
+    const accessTtl = isStaff ? '24h' : (this.config.get<string>('JWT_ACCESS_TTL') ?? '4h')
+    const refreshTtl = this.config.get<string>('JWT_REFRESH_TTL') ?? '30d'
     const accessSecret = this.config.get<string>('JWT_ACCESS_SECRET') ?? 'dev'
 
     const jwtBody: JwtPayload = {

@@ -1,6 +1,7 @@
 import type { PlanId } from '@/lib/tenant'
 import {
   apiConfirmGuestPay,
+  apiConfirmOrderCheckout,
   apiConfirmSubscription,
   apiCreateGuestPay,
   apiStartSubscription,
@@ -18,11 +19,17 @@ type RazorpayHandlerResponse = {
 type RazorpayCheckoutOptions = {
   key: string
   subscription_id?: string
+  customer_id?: string
   order_id?: string
   amount?: number
   currency?: string
   name: string
   description: string
+  prefill?: {
+    name?: string
+    email?: string
+    contact?: string
+  }
   handler: (response: RazorpayHandlerResponse) => void
   modal?: { ondismiss?: () => void }
   theme?: { color?: string }
@@ -59,6 +66,7 @@ export async function startPlanCheckout(input: {
   planId: PlanId
   planName: string
   mock?: boolean
+  prefill?: { name?: string; email?: string; contact?: string }
   onDemoApplied?: (planId: PlanId) => void
   onActivated?: (planId: PlanId) => void
 }): Promise<SubscribeResult> {
@@ -76,12 +84,49 @@ export async function startPlanCheckout(input: {
   await loadRazorpayScript()
   if (!window.Razorpay) throw new Error('Razorpay Checkout unavailable')
 
+  // One-time Order mode (RAZORPAY_USE_ORDERS=true on backend) — any card works.
+  if (result.mode === 'razorpay_order') {
+    await new Promise<void>((resolve, reject) => {
+      const rzp = new window.Razorpay!({
+        key: result.keyId,
+        order_id: result.orderId,
+        amount: result.amount,
+        currency: result.currency,
+        name: 'Bear 360',
+        description: `${input.planName} plan activation`,
+        prefill: input.prefill,
+        theme: { color: '#2F6FED' },
+        handler: (response) => {
+          void apiConfirmOrderCheckout({
+            restaurantId: input.restaurantId,
+            planId: result.planId,
+            razorpayOrderId: response.razorpay_order_id || result.orderId,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+          })
+            .then(() => {
+              input.onActivated?.(result.planId)
+              resolve()
+            })
+            .catch((err) => reject(err instanceof Error ? err : new Error('Confirm failed')))
+        },
+        modal: {
+          ondismiss: () => reject(new Error('Checkout closed')),
+        },
+      })
+      rzp.open()
+    })
+    return result
+  }
+
+  // Subscription mode.
   await new Promise<void>((resolve, reject) => {
     const rzp = new window.Razorpay!({
       key: result.keyId,
       subscription_id: result.subscriptionId,
       name: 'Bear 360',
       description: `${input.planName} subscription`,
+      prefill: input.prefill,
       theme: { color: '#2F6FED' },
       handler: (response) => {
         void apiConfirmSubscription(

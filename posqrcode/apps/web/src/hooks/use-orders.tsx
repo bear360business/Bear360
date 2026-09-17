@@ -7,12 +7,16 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { toast } from 'sonner'
 import {
+  apiDeleteOrder,
   apiListOrders,
   apiPlaceOrder,
   apiPublicPlaceOrder,
+  apiUpdateOrder,
   apiUpdateOrderStatus,
   subscribeRestaurantOrders,
+  toApiStatus,
 } from '@/lib/api-orders'
 import { getAccessToken } from '@/lib/api-client'
 import { orders as orderFixtures } from '@/lib/mock'
@@ -41,6 +45,39 @@ import { useAuthTick } from '@/hooks/use-auth-tick'
  */
 
 export const ORDERS_STORAGE_KEY = 'bearqr:orders'
+export const OFFLINE_ORDERS_QUEUE_KEY = 'bearqr:orders:pending-sync'
+
+export interface PendingSyncOrder {
+  localId: string
+  restaurantId: string
+  input: PlaceOrderInput
+  queuedAt: number
+  attempts: number
+  lastError?: string
+}
+
+export function readPendingSyncQueue(): PendingSyncOrder[] {
+  try {
+    const raw = localStorage.getItem(OFFLINE_ORDERS_QUEUE_KEY)
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+export function writePendingSyncQueue(queue: PendingSyncOrder[]): void {
+  try {
+    if (queue.length === 0) {
+      localStorage.removeItem(OFFLINE_ORDERS_QUEUE_KEY)
+    } else {
+      localStorage.setItem(OFFLINE_ORDERS_QUEUE_KEY, JSON.stringify(queue))
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 /** Demo data goes stale: re-seed rather than show a board of 9-hour-old tickets. */
 const RESEED_AFTER_MS = 2 * 60 * 60 * 1000
@@ -58,7 +95,7 @@ export interface PlaceOrderInput {
   tableName?: string
   customerName?: string
   customerPhone?: string
-  paymentMethod?: 'pay-at-counter' | 'online'
+  paymentMethod?: 'pay-at-counter' | 'online' | 'cash' | 'upi' | 'card' | string
   note?: string
   /** Delivery only. */
   deliveryAddress?: string
@@ -81,14 +118,19 @@ interface OrdersContextValue {
   /** Creates a `pending` order — it appears on the KDS immediately. */
   placeOrder: (input: PlaceOrderInput) => Promise<Order>
   setStatus: (id: string, status: OrderStatus) => void
-  /** Mark counter payment settled (POS charge after KOT). */
-  markPaid: (id: string) => void
+  /** Mark counter payment settled (POS charge after KOT). Optional payment method. */
+  markPaid: (id: string, paymentMethod?: string) => void
   /** Move one step along the pipeline. */
   advance: (id: string) => void
   /** Step back — the kitchen's undo for a mis-tapped "Mark done". */
   rollback: (id: string) => void
   cancel: (id: string) => void
+  updateOrder: (id: string, updates: Partial<Order>) => Promise<Order>
+  deleteOrder: (id: string) => Promise<void>
   reseed: () => void
+  isOnline: boolean
+  pendingSyncCount: number
+  syncPending: () => Promise<void>
 }
 
 const OrdersContext = createContext<OrdersContextValue | null>(null)
@@ -132,6 +174,131 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   )
   const [venueId, setVenueId] = useState(() => resolveDataVenueId())
 
+  const [isOnline, setIsOnline] = useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true,
+  )
+  const [pendingSyncCount, setPendingSyncCount] = useState(() => readPendingSyncQueue().length)
+
+  const syncPending = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) return
+    const queue = readPendingSyncQueue()
+    if (queue.length === 0) {
+      setPendingSyncCount(0)
+      return
+    }
+    const token = getAccessToken()
+    const remaining: PendingSyncOrder[] = []
+    let synced = 0
+
+    for (const item of queue) {
+      try {
+        const channel = item.input.channel ?? (item.input.origin === 'pos' ? 'pos' : 'qr')
+        const isGuestQr =
+          channel === 'qr' ||
+          item.input.origin === 'table-qr' ||
+          item.input.origin === 'counter-qr' ||
+          !token
+        const create = isGuestQr ? apiPublicPlaceOrder : apiPlaceOrder
+
+        const created = await create({
+          restaurantId: item.restaurantId,
+          tableId: item.input.tableId,
+          tableName: item.input.tableName,
+          type: item.input.orderType,
+          channel,
+          items: item.input.items,
+          guestName: item.input.customerName,
+          guestPhone: item.input.customerPhone,
+          notes: item.input.note,
+          paymentMethod: item.input.paymentMethod,
+          paid: item.input.paid,
+          deliveryFee: item.input.deliveryFee,
+          parcelFee: item.input.parcelFee,
+        })
+
+        const localCurrent = state.orders.find((o) => o.id === item.localId)
+        const withExtras: Order = {
+          ...created,
+          paymentMethod:
+            localCurrent?.paymentMethod ?? item.input.paymentMethod ?? created.paymentMethod,
+          paid: localCurrent?.paid ?? item.input.paid ?? created.paid,
+          deliveryAddress:
+            localCurrent?.deliveryAddress ?? item.input.deliveryAddress ?? created.deliveryAddress,
+          tableName: localCurrent?.tableName ?? item.input.tableName ?? created.tableName,
+          origin: localCurrent?.origin ?? item.input.origin ?? created.origin,
+        }
+
+        if (localCurrent && (localCurrent.paid || localCurrent.status === 'completed')) {
+          try {
+            await apiUpdateOrderStatus(item.restaurantId, created.id, 'completed')
+            if (localCurrent.paymentMethod) {
+              await apiUpdateOrder(item.restaurantId, created.id, {
+                paymentMethod: localCurrent.paymentMethod,
+                paid: true,
+              })
+            }
+          } catch {
+            /* best effort */
+          }
+        } else if (localCurrent && localCurrent.status !== 'pending') {
+          try {
+            await apiUpdateOrderStatus(item.restaurantId, created.id, localCurrent.status)
+          } catch {
+            /* best effort */
+          }
+        }
+
+        setState((prev) => ({
+          ...prev,
+          orders: [
+            withExtras,
+            ...prev.orders.filter((o) => o.id !== item.localId && o.id !== created.id),
+          ],
+        }))
+
+        synced++
+      } catch (err) {
+        item.attempts += 1
+        item.lastError = err instanceof Error ? err.message : String(err)
+        remaining.push(item)
+      }
+    }
+
+    writePendingSyncQueue(remaining)
+    setPendingSyncCount(remaining.length)
+    if (synced > 0) {
+      toast.success(`Synced ${synced} offline order${synced === 1 ? '' : 's'} to cloud`, {
+        description: 'Your counter tickets are now securely recorded on the server.',
+      })
+    }
+  }, [state.orders])
+
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true)
+      void syncPending()
+    }
+    const handleOffline = () => {
+      setIsOnline(false)
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [syncPending])
+
+  useEffect(() => {
+    if (mock || !isOnline) return
+    const interval = setInterval(() => {
+      if (readPendingSyncQueue().length > 0) {
+        void syncPending()
+      }
+    }, 15000)
+    return () => clearInterval(interval)
+  }, [mock, isOnline, syncPending])
+
   useEffect(() => {
     if (mock) writeStored(state)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -158,8 +325,16 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     if (mock || !getAccessToken()) return
     let cancelled = false
     void apiListOrders(venueId)
-      .then((orders) => {
-        if (!cancelled) setState({ seededAt: Date.now(), orders })
+      .then((serverOrders) => {
+        if (!cancelled) {
+          setState((prev) => {
+            const queue = readPendingSyncQueue()
+            const pendingIds = new Set(queue.map((q) => q.localId))
+            const localPending = prev.orders.filter((o) => pendingIds.has(o.id))
+            const serverFiltered = serverOrders.filter((so) => !pendingIds.has(so.id))
+            return { seededAt: Date.now(), orders: [...localPending, ...serverFiltered] }
+          })
+        }
       })
       .catch((err) => {
         if (getAccessToken()) reportApiError(err, 'Could not load orders')
@@ -200,10 +375,32 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           input.origin === 'counter-qr' ||
           !getAccessToken()
         const create = isGuestQr ? apiPublicPlaceOrder : apiPlaceOrder
+
+        // If explicitly offline, don't wait for network timeout
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          const optimistic = buildLocalOrder(input, state.orders, restaurantId)
+          const queue = readPendingSyncQueue()
+          queue.push({
+            localId: optimistic.id,
+            restaurantId,
+            input,
+            queuedAt: Date.now(),
+            attempts: 0,
+          })
+          writePendingSyncQueue(queue)
+          setPendingSyncCount(queue.length)
+          commit((prev) => [optimistic, ...prev])
+          toast.info(`Offline: Order #${optimistic.number} saved locally`, {
+            description: 'Will automatically sync to server when connection returns.',
+          })
+          return optimistic
+        }
+
         try {
           const created = await create({
             restaurantId,
             tableId: input.tableId,
+            tableName: input.tableName,
             type: input.orderType,
             channel,
             items: input.items,
@@ -228,6 +425,16 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         } catch (err) {
           reportApiError(err, 'Could not place order on server — saved locally')
           const optimistic = buildLocalOrder(input, state.orders, restaurantId)
+          const queue = readPendingSyncQueue()
+          queue.push({
+            localId: optimistic.id,
+            restaurantId,
+            input,
+            queuedAt: Date.now(),
+            attempts: 0,
+          })
+          writePendingSyncQueue(queue)
+          setPendingSyncCount(queue.length)
           commit((prev) => [optimistic, ...prev])
           return optimistic
         }
@@ -269,14 +476,28 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   )
 
   const markPaid = useCallback(
-    (id: string) => {
+    (id: string, paymentMethod?: string) => {
       const current = state.orders.find((o) => o.id === id)
       if (current && !mock) {
-        void apiUpdateOrderStatus(current.restaurantId, id, 'completed').catch((err) => reportApiError(err))
+        void apiUpdateOrderStatus(current.restaurantId, id, 'completed').catch((err) =>
+          reportApiError(err),
+        )
+        if (paymentMethod) {
+          void apiUpdateOrder(current.restaurantId, id, { paymentMethod, paid: true }).catch(
+            (err) => reportApiError(err),
+          )
+        }
       }
       commit((prev) =>
         prev.map((o) =>
-          o.id === id ? { ...o, paid: true, status: 'completed' as OrderStatus } : o,
+          o.id === id
+            ? {
+                ...o,
+                paid: true,
+                status: 'completed' as OrderStatus,
+                ...(paymentMethod ? { paymentMethod } : {}),
+              }
+            : o,
         ),
       )
     },
@@ -340,6 +561,80 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     [commit, mock, state.orders],
   )
 
+  const updateOrder = useCallback(
+    async (id: string, updates: Partial<Order>): Promise<Order> => {
+      const current = state.orders.find((o) => o.id === id)
+      if (!current) throw new Error('Order not found')
+
+      // Recalculate totals if items changed
+      const subtotal = updates.items
+        ? updates.items.reduce((s, i) => s + i.price * i.qty, 0)
+        : current.subtotal
+      const prevTaxRate =
+        current.subtotal > 0 && current.cgst + current.sgst > 0
+          ? ((current.cgst + current.sgst) / current.subtotal) * 100
+          : 5
+      const gst = updates.items
+        ? calcGst(subtotal, prevTaxRate)
+        : { cgst: current.cgst, sgst: current.sgst, total: current.total }
+      const cgst = gst.cgst
+      const sgst = gst.sgst
+      const total = gst.total
+
+      const updatedOrder: Order = {
+        ...current,
+        ...updates,
+        subtotal,
+        cgst,
+        sgst,
+        total,
+      }
+
+      if (!mock && getAccessToken()) {
+        try {
+          await apiUpdateOrder(current.restaurantId, id, {
+            items: updates.items,
+            type: updates.orderType,
+            tableId: updates.tableId,
+            tableName: updates.tableName,
+            guestName: updates.customerName,
+            guestPhone: updates.customerPhone,
+            notes: updates.note,
+            paymentMethod: updates.paymentMethod,
+            paid: updates.paid,
+            status: updates.status ? toApiStatus(updates.status) : undefined,
+          })
+        } catch (err) {
+          reportApiError(err, 'Could not sync update to server — updated locally')
+        }
+      }
+
+      commit((prev) => prev.map((o) => (o.id === id ? updatedOrder : o)))
+      return updatedOrder
+    },
+    [commit, mock, state.orders],
+  )
+
+  const deleteOrder = useCallback(
+    async (id: string): Promise<void> => {
+      const current = state.orders.find((o) => o.id === id)
+      // Clean up from offline queue if this order was pending sync
+      const queue = readPendingSyncQueue().filter((q) => q.localId !== id)
+      writePendingSyncQueue(queue)
+      setPendingSyncCount(queue.length)
+
+      if (current && !mock && getAccessToken()) {
+        try {
+          await apiDeleteOrder(current.restaurantId, id)
+        } catch (err) {
+          reportApiError(err, 'Could not delete from server — removed locally')
+        }
+      }
+      commit((prev) => prev.filter((o) => o.id !== id))
+    },
+    [commit, mock, state.orders],
+  )
+
   const reseed = useCallback(() => {
     const fresh = seed()
     writeStored(fresh)
@@ -361,7 +656,12 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       advance,
       rollback,
       cancel,
+      updateOrder,
+      deleteOrder,
       reseed,
+      isOnline,
+      pendingSyncCount,
+      syncPending,
     }),
     [
       venueOrders,
@@ -372,7 +672,12 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       advance,
       rollback,
       cancel,
+      updateOrder,
+      deleteOrder,
       reseed,
+      isOnline,
+      pendingSyncCount,
+      syncPending,
     ],
   )
 

@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { getAccessToken } from '@/lib/api-client'
 import { isSuperAdmin } from '@/lib/auth'
 import { apiGetPlatformConfig, apiPutPlatformConfig } from '@/lib/api-platform'
 import { useMockData } from '@/lib/runtime-config'
@@ -152,13 +153,13 @@ export function SupportProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     writeStored(tickets)
-    if (!mock && apiReady.current && isSuperAdmin()) {
+    if (!mock && apiReady.current && isSuperAdmin() && getAccessToken()) {
       void apiPutPlatformConfig({ support: tickets }).catch((err) => reportApiError(err))
     }
   }, [tickets, mock])
 
   useEffect(() => {
-    if (mock || !isSuperAdmin()) {
+    if (mock || !isSuperAdmin() || !getAccessToken()) {
       apiReady.current = true
       return
     }

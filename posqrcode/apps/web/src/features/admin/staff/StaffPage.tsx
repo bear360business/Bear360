@@ -1,17 +1,19 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { LayoutGrid, List, Plus, Search, Users } from 'lucide-react'
+import { CheckCircle2, LayoutGrid, List, Plus, Search, Trash2, UserX, Users } from 'lucide-react'
 import { EmployeeCard } from '@/components/app/EmployeeCard'
 import { EmptyState } from '@/components/app/EmptyState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { UsageMeter } from '@/components/app/UsageMeter'
 import { useUpgrade } from '@/components/app/UpgradeDrawer'
+import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import {
   Select,
   SelectContent,
@@ -32,7 +34,7 @@ import { createEmployeeDraft, defaultHourlyRate, useStaff } from '@/hooks/use-st
 import { useStaffRoles } from '@/hooks/use-staff-roles'
 import { useTenant } from '@/hooks/use-tenant'
 import { getRole, initials } from '@/lib/mock'
-import type { Employee, StaffRoleId } from '@/lib/types'
+import type { Employee, EmployeeStatus, StaffRoleId } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 type ViewMode = 'grid' | 'list'
@@ -43,6 +45,7 @@ type StaffForm = {
   email: string
   roleId: StaffRoleId
   hourlyRate: string
+  status: EmployeeStatus
 }
 
 const emptyForm = (): StaffForm => ({
@@ -51,6 +54,7 @@ const emptyForm = (): StaffForm => ({
   email: '',
   roleId: 'waiter',
   hourlyRate: String(defaultHourlyRate('waiter')),
+  status: 'active',
 })
 
 function digitsOnly(value: string) {
@@ -66,7 +70,7 @@ function isValidPhone(value: string) {
 export function StaffPage() {
   const { readOnly, limit } = useTenant()
   const { openUpgrade } = useUpgrade()
-  const { employees: people, upsert, setStatus } = useStaff()
+  const { employees: people, upsert, setStatus, remove } = useStaff()
   const { roles } = useStaffRoles()
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
@@ -75,6 +79,7 @@ export function StaffPage() {
     open: false,
     employee: null,
   })
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
   const [form, setForm] = useState<StaffForm>(emptyForm)
 
   const seats = limit('staffSeats')
@@ -107,6 +112,7 @@ export function StaffPage() {
       email: employee.email ?? '',
       roleId: employee.roleId,
       hourlyRate: String(employee.hourlyRate),
+      status: employee.status,
     })
     setDrawer({ open: true, employee })
   }
@@ -157,6 +163,7 @@ export function StaffPage() {
         email: form.email.trim() || undefined,
         roleId: form.roleId,
         hourlyRate: rate,
+        status: form.status,
       })
       toast.success(`Updated ${form.name.trim()}`)
     } else {
@@ -167,7 +174,10 @@ export function StaffPage() {
         roleId: form.roleId,
         hourlyRate: rate,
       })
-      upsert(next)
+      upsert({
+        ...next,
+        status: form.status,
+      })
       toast.success(`${next.name} added`, {
         description: 'They’ll show on Schedule and Payroll.',
       })
@@ -175,9 +185,26 @@ export function StaffPage() {
     setDrawer({ open: false, employee: null })
   }
 
+  const activate = (employee: Employee) => {
+    setStatus(employee.id, 'active')
+    upsert({ ...employee, status: 'active' })
+    toast.success(`${employee.name} reactivated`)
+  }
+
   const deactivate = (employee: Employee) => {
     setStatus(employee.id, 'inactive')
+    upsert({ ...employee, status: 'inactive' })
     toast.success(`${employee.name} deactivated`)
+  }
+
+  const confirmDelete = () => {
+    if (!deleteTarget) return
+    remove(deleteTarget.id)
+    toast.success(`${deleteTarget.name} removed from roster`)
+    if (drawer.employee?.id === deleteTarget.id) {
+      setDrawer({ open: false, employee: null })
+    }
+    setDeleteTarget(null)
   }
 
   return (
@@ -296,7 +323,9 @@ export function StaffPage() {
               employee={employee}
               readOnly={readOnly}
               onEdit={openEdit}
+              onActivate={activate}
               onDeactivate={deactivate}
+              onDelete={(emp) => setDeleteTarget(emp)}
             />
           ))}
         </div>
@@ -321,12 +350,15 @@ export function StaffPage() {
                   <th className="px-3 py-2.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     Status
                   </th>
-                  <th className="w-10" />
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
                 {filtered.map((employee) => {
                   const role = getRole(employee.roleId)
+                  const isInactive = employee.status === 'inactive'
                   return (
                     <tr key={employee.id} className="hover:bg-surface-muted/40">
                       <td className="px-4 py-3">
@@ -359,15 +391,50 @@ export function StaffPage() {
                       <td className="px-3">
                         <StatusBadge status={employee.status} />
                       </td>
-                      <td className="pr-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={readOnly}
-                          onClick={() => openEdit(employee)}
-                        >
-                          Edit
-                        </Button>
+                      <td className="px-3 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={readOnly}
+                            onClick={() => openEdit(employee)}
+                          >
+                            Edit
+                          </Button>
+                          {isInactive ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={readOnly}
+                              className="h-8 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500 text-xs font-semibold"
+                              onClick={() => activate(employee)}
+                            >
+                              <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                              Activate
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={readOnly}
+                              className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                              onClick={() => deactivate(employee)}
+                            >
+                              <UserX className="mr-1 h-3.5 w-3.5" />
+                              Deactivate
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            disabled={readOnly}
+                            className="h-8 w-8 text-danger hover:bg-danger/10 hover:text-danger"
+                            onClick={() => setDeleteTarget(employee)}
+                            title="Delete employee"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   )
@@ -470,6 +537,21 @@ export function StaffPage() {
                   used in Payroll.
                 </p>
               </div>
+
+              <label className="flex items-center justify-between rounded-xl border border-line px-4 py-3 bg-surface-muted/20">
+                <div className="space-y-0.5">
+                  <span className="text-sm font-medium">Active Status</span>
+                  <p className="text-xs text-muted-foreground">
+                    Inactive staff are excluded from active seat counts and shifts
+                  </p>
+                </div>
+                <Switch
+                  checked={form.status !== 'inactive'}
+                  onCheckedChange={(checked) =>
+                    setForm((f) => ({ ...f, status: checked ? 'active' : 'inactive' }))
+                  }
+                />
+              </label>
             </section>
 
             {!drawer.employee && atSeatLimit && seats.max != null && (
@@ -479,16 +561,40 @@ export function StaffPage() {
               </p>
             )}
           </div>
-          <SheetFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setDrawer({ open: false, employee: null })}>
-              Cancel
-            </Button>
-            <Button disabled={readOnly} onClick={save}>
-              {drawer.employee ? 'Save changes' : 'Add to roster'}
-            </Button>
+          <SheetFooter className="gap-2 sm:justify-between">
+            {drawer.employee ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-full text-danger hover:text-danger hover:bg-danger/10"
+                disabled={readOnly}
+                onClick={() => setDeleteTarget(drawer.employee)}
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" /> Delete employee
+              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" className="rounded-full" onClick={() => setDrawer({ open: false, employee: null })}>
+                Cancel
+              </Button>
+              <Button className="rounded-full" disabled={readOnly} onClick={save}>
+                {drawer.employee ? 'Save changes' : 'Add to roster'}
+              </Button>
+            </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={confirmDelete}
+        title={`Delete ${deleteTarget?.name}?`}
+        description={`Are you sure you want to delete ${deleteTarget?.name}? This will permanently remove them from the roster, schedules, and payroll.`}
+        confirmText="Delete employee"
+      />
     </>
   )
 }

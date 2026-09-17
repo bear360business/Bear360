@@ -8,13 +8,14 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { getAccessToken } from '@/lib/api-client'
 import { isSuperAdmin } from '@/lib/auth'
 import { apiGetPlatformConfig, apiPutPlatformConfig } from '@/lib/api-platform'
 import {
+  INDUSTRIES_STORAGE_KEY,
   getIndustriesWithIcons,
   mergeIndustriesCatalog,
   syncIndustriesCatalog,
-  INDUSTRIES_STORAGE_KEY,
 } from '@/lib/industries-catalog'
 import { defaultIndustryProfiles, type IndustryId, type IndustryProfile } from '@/lib/industries'
 import { useMockData } from '@/lib/runtime-config'
@@ -57,13 +58,13 @@ export function IndustriesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     writeStored(profiles)
     syncIndustriesCatalog(profiles)
-    if (!mock && apiReady.current && isSuperAdmin()) {
+    if (!mock && apiReady.current && isSuperAdmin() && getAccessToken()) {
       void apiPutPlatformConfig({ industries: profiles }).catch((err) => reportApiError(err))
     }
   }, [profiles, mock])
 
   useEffect(() => {
-    if (mock || !isSuperAdmin()) {
+    if (mock || !isSuperAdmin() || !getAccessToken()) {
       apiReady.current = true
       return
     }

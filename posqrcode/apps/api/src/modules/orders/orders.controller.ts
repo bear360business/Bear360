@@ -1,6 +1,11 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common'
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common'
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger'
-import { CreateOrderSchema, UpdateOrderStatusSchema, type OrderStatus } from '@bear360/shared'
+import {
+  CreateOrderSchema,
+  UpdateOrderSchema,
+  UpdateOrderStatusSchema,
+  type OrderStatus,
+} from '@bear360/shared'
 import { CurrentUser } from '../../common/current-user.decorator'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import type { JwtPayload } from '../auth/jwt-payload'
@@ -50,5 +55,25 @@ export class OrdersController {
   ) {
     const input = UpdateOrderStatusSchema.parse(body)
     return this.orders.updateStatus(user, restaurantId, orderId, input.status)
+  }
+
+  @Patch(':orderId')
+  update(
+    @CurrentUser() user: JwtPayload,
+    @Param('restaurantId') restaurantId: string,
+    @Param('orderId') orderId: string,
+    @Body() body: unknown,
+  ) {
+    const input = UpdateOrderSchema.parse(body)
+    return this.orders.update(user, restaurantId, orderId, input)
+  }
+
+  @Delete(':orderId')
+  delete(
+    @CurrentUser() user: JwtPayload,
+    @Param('restaurantId') restaurantId: string,
+    @Param('orderId') orderId: string,
+  ) {
+    return this.orders.delete(user, restaurantId, orderId)
   }
 }

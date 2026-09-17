@@ -181,8 +181,8 @@ export interface Order {
   customerName?: string
   /** Guest phone from checkout (Ordering & checkout form). */
   customerPhone?: string
-  /** How the guest chose to pay at QR checkout. */
-  paymentMethod?: 'pay-at-counter' | 'online'
+  /** How the guest or cashier chose to pay. */
+  paymentMethod?: 'pay-at-counter' | 'online' | 'cash' | 'upi' | 'card' | (string & {})
   status: OrderStatus
   /** Defaults to dine-in when absent (table QR orders). */
   orderType?: OrderType

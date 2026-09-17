@@ -86,13 +86,14 @@ function DashboardOverview() {
   const { orders } = useOrders()
   const dash = useMemo(() => buildLiveDashboard(orders), [orders])
   const tablesOn = useFeature('tables')
+  const kitchenOn = useFeature('kitchen')
   const industry = useIndustryProfile()
   const tablesHidden = industry.navHints.hide.includes('/tables') || !tablesOn
-  const visibleQuickActions = quickActions.filter(
-    (a) =>
-      (a.to !== '/kitchen' || config.service.kitchenDisplay) &&
-      (a.to !== '/tables' || !tablesHidden),
-  )
+  const visibleQuickActions = quickActions.filter((a) => {
+    if (a.to === '/kitchen' && (!config.service.kitchenDisplay || !kitchenOn)) return false
+    if (a.to === '/tables' && tablesHidden) return false
+    return true
+  })
   const [range, setRange] = useState<'today' | 'week' | 'month'>('today')
   const salesRanges = {
     today: dash.salesToday,
@@ -284,21 +285,30 @@ export function DashboardPage() {
     : undefined
   const expenseOnly = staffEmp ? !resolveStaffCapabilities(staffEmp).addIncome : false
   const tablesOn = useFeature('tables')
+  const kitchenOn = useFeature('kitchen')
+  const reportsBasicOn = useFeature('reportsBasic')
+  const reportsAdvOn = useFeature('reportsAdvanced')
+  const reportsCustomOn = useFeature('reportsCustom')
+  const staffOn = useFeature('staff')
+  const payrollOn = useFeature('payroll')
   const industry = useIndustryProfile()
   const tablesHidden = industry.navHints.hide.includes('/tables') || !tablesOn
   const venue = useCurrentVenue()
   const [params, setParams] = useSearchParams()
-  const showReports = config.adminUi.showReports && !isStaff
+  const hasReportsAccess = Boolean(reportsBasicOn || reportsAdvOn || reportsCustomOn)
+  const hasFinanceAccess = Boolean(payrollOn || staffOn)
+  const showReports = config.adminUi.showReports && !isStaff && hasReportsAccess
+  const showFinance = hasFinanceAccess
   const tab = useMemo(() => {
     if (isStaff) return 'finance' as DashboardTab
     return parseTab(params.get('tab'), showReports)
   }, [isStaff, params, showReports])
 
-  const visibleQuickActions = quickActions.filter(
-    (a) =>
-      (a.to !== '/kitchen' || config.service.kitchenDisplay) &&
-      (a.to !== '/tables' || !tablesHidden),
-  )
+  const visibleQuickActions = quickActions.filter((a) => {
+    if (a.to === '/kitchen' && (!config.service.kitchenDisplay || !kitchenOn)) return false
+    if (a.to === '/tables' && tablesHidden) return false
+    return true
+  })
 
   const setTab = (next: string) => {
     if (isStaff) return
@@ -332,7 +342,7 @@ export function DashboardPage() {
         title={`Good morning, ${venue.name}`}
         caption={format(new Date(), 'EEE, MMM d')}
         actions={
-          tab === 'overview' ? (
+          tab === 'overview' && visibleQuickActions.length > 0 ? (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="rounded-full font-semibold">+ Quick action</Button>
@@ -356,7 +366,7 @@ export function DashboardPage() {
         <TabsList className="w-full justify-start overflow-x-auto sm:w-auto">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           {showReports && <TabsTrigger value="reports">Reports</TabsTrigger>}
-          <TabsTrigger value="finance">Finance</TabsTrigger>
+          {showFinance && <TabsTrigger value="finance">Finance</TabsTrigger>}
         </TabsList>
 
         <TabsContent value="overview" className="mt-0 outline-none">
@@ -367,9 +377,11 @@ export function DashboardPage() {
             <ReportsPage embedded />
           </TabsContent>
         )}
-        <TabsContent value="finance" className="mt-0 outline-none">
-          <FinancePage embedded />
-        </TabsContent>
+        {showFinance && (
+          <TabsContent value="finance" className="mt-0 outline-none">
+            <FinancePage embedded />
+          </TabsContent>
+        )}
       </Tabs>
     </>
   )

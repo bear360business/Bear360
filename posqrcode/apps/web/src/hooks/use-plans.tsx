@@ -8,8 +8,13 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { getAccessToken } from '@/lib/api-client'
 import { isSuperAdmin } from '@/lib/auth'
-import { apiGetPlatformConfig, apiPutPlatformConfig } from '@/lib/api-platform'
+import {
+  apiGetPlatformConfig,
+  apiGetPublicPlatformUi,
+  apiPutPlatformConfig,
+} from '@/lib/api-platform'
 import {
   PLANS_STORAGE_KEY,
   blankPlanDraft,
@@ -73,31 +78,46 @@ export function PlansProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     writeStored(plans)
     syncLegacyMock(plans)
-    if (!mock && apiReady.current && isSuperAdmin()) {
+    if (!mock && apiReady.current && isSuperAdmin() && getAccessToken()) {
       void apiPutPlatformConfig({ plans }).catch((err) => reportApiError(err))
     }
   }, [plans, mock])
 
   useEffect(() => {
-    if (mock || !isSuperAdmin()) {
+    if (mock) {
       apiReady.current = true
       return
     }
     let cancelled = false
-    void apiGetPlatformConfig()
-      .then((cfg) => {
+    const loadPlans = async () => {
+      try {
+        if (isSuperAdmin() && getAccessToken()) {
+          const cfg = await apiGetPlatformConfig()
+          if (cancelled) return
+          if (Array.isArray(cfg?.plans)) {
+            const next = mergePlansCatalog(cfg.plans)
+            syncLegacyMock(next)
+            writeStored(next)
+            setPlans(next)
+            return
+          }
+        }
+        const ui = await apiGetPublicPlatformUi()
         if (cancelled) return
-        if (Array.isArray(cfg.plans)) {
-          const next = mergePlansCatalog(cfg.plans)
+        const plansData = (ui as Record<string, unknown>)?.plans
+        if (Array.isArray(plansData)) {
+          const next = mergePlansCatalog(plansData)
           syncLegacyMock(next)
           writeStored(next)
           setPlans(next)
         }
-      })
-      .catch((err) => reportApiError(err))
-      .finally(() => {
+      } catch (err) {
+        reportApiError(err)
+      } finally {
         if (!cancelled) apiReady.current = true
-      })
+      }
+    }
+    void loadPlans()
     return () => {
       cancelled = true
     }

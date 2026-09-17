@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -26,6 +26,7 @@ import {
 import { BrandLogo } from '@/components/app/BrandLogo'
 import { BRAND_NAME, BRAND_DOMAIN } from '@/lib/brand'
 import { getIndustriesWithIcons } from '@/lib/industries-catalog'
+import { apiGetPublicPlatformUi } from '@/lib/api-platform'
 import { cn } from '@/lib/utils'
 
 const NAV = [
@@ -39,15 +40,8 @@ const NAV = [
 
 const GUEST_DEMO_URL = '/r/masala-bear/table/t-04'
 
-const PRICING = [
-  {
-    id: 'basic',
-    name: 'Starter',
-    price: '₹999',
-    period: '/mo',
-    blurb: 'QR-first single counter',
-    features: ['QR menu & ordering', 'Up to 10 tables', 'Basic reports', '7-day full trial'],
-  },
+/** Fallback shown while API loads (structure only — prices overridden by API). */
+const PRICING_FALLBACK = [
   {
     id: 'professional',
     name: 'Pro',
@@ -63,9 +57,20 @@ const PRICING = [
     price: 'Custom',
     period: '',
     blurb: 'Groups & multi-branch',
+    popular: false,
     features: ['Multi-branch', 'AI insights', 'Custom reports', 'Dedicated onboarding'],
   },
 ]
+
+const PLAN_BLURBS: Record<string, string> = {
+  professional: 'Full-service restaurant',
+  enterprise: 'Groups & multi-branch',
+}
+
+const PLAN_FALLBACK_FEATURES: Record<string, string[]> = {
+  professional: ['POS + kitchen display', 'Unlimited tables', 'Inventory & staff', 'Priority support'],
+  enterprise: ['Multi-branch', 'AI insights', 'Custom reports', 'Dedicated onboarding'],
+}
 
 const ROTATING = [
   'Restaurants',
@@ -306,6 +311,16 @@ function FaqItem({ q, a }: { q: string; a: string }) {
   )
 }
 
+type PricingRow = {
+  id: string
+  name: string
+  price: string
+  period: string
+  blurb: string
+  popular: boolean
+  features: string[]
+}
+
 /** Marketing home — calm SaaS layout for India F&B operators. */
 export function MarketingLandingPage() {
   const industries = getIndustriesWithIcons()
@@ -313,6 +328,35 @@ export function MarketingLandingPage() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const activeTab = PLATFORM_TABS.find((t) => t.id === tab) ?? PLATFORM_TABS[0]!
   const marquee = [...ROTATING, ...ROTATING]
+
+  const [pricing, setPricing] = useState<PricingRow[]>(PRICING_FALLBACK)
+
+  useEffect(() => {
+    let cancelled = false
+    apiGetPublicPlatformUi()
+      .then((ui) => {
+        if (cancelled) return
+        const apiPlans = ui.plans
+        if (!Array.isArray(apiPlans) || apiPlans.length === 0) return
+        const rows: PricingRow[] = apiPlans
+          .filter((p) => !p.archived)
+          .map((p) => ({
+            id: p.id,
+            name: p.name,
+            price: p.priceMonthly === null ? 'Custom' : p.priceLabel,
+            period: p.priceMonthly === null ? '' : '/mo',
+            blurb: p.tagline ?? PLAN_BLURBS[p.id] ?? '',
+            popular: Boolean(p.popular),
+            features:
+              Array.isArray(p.features) && p.features.length > 0
+                ? p.features
+                : (PLAN_FALLBACK_FEATURES[p.id] ?? []),
+          }))
+        if (rows.length > 0) setPricing(rows)
+      })
+      .catch(() => {/* keep fallback */})
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <div className="min-h-screen bg-[#F4F8FC] font-marketBody text-[#0B1F3A] antialiased">
@@ -676,8 +720,10 @@ export function MarketingLandingPage() {
             Start with a 7-day Pro trial. Upgrade when you are ready — no marketplace
             commission on your direct QR & POS orders.
           </p>
-          <div className="mt-12 grid gap-4 lg:grid-cols-3">
-            {PRICING.map((plan) => (
+          <div className="mt-12 grid gap-4 sm:grid-cols-2 max-w-3xl mx-auto">
+            {pricing
+              .filter((p) => p.id !== 'basic')
+              .map((plan) => (
               <div
                 key={plan.id}
                 className={cn(
@@ -706,17 +752,29 @@ export function MarketingLandingPage() {
                     </li>
                   ))}
                 </ul>
-                <Link
-                  to={plan.id === 'enterprise' ? '/contact#talk' : '/signup'}
-                  className={cn(
-                    'mt-8 inline-flex h-11 items-center justify-center rounded-full text-sm font-semibold transition-transform hover:scale-[1.02]',
-                    plan.popular
-                      ? 'bg-[#2F6FED] text-white'
-                      : 'border border-[#B8CFE8] bg-[#F4F8FD] text-[#0B1F3A]',
-                  )}
-                >
-                  {plan.id === 'enterprise' ? 'Talk to us' : 'Start free trial'}
-                </Link>
+                {plan.id === 'enterprise' ? (
+                  <a
+                    href="tel:6379371429"
+                    className={cn(
+                      'mt-8 inline-flex h-11 items-center justify-center rounded-full text-sm font-semibold transition-transform hover:scale-[1.02]',
+                      'border border-[#B8CFE8] bg-[#F4F8FD] text-[#0B1F3A]',
+                    )}
+                  >
+                    📞 Call us: 6379371429
+                  </a>
+                ) : (
+                  <Link
+                    to="/signup"
+                    className={cn(
+                      'mt-8 inline-flex h-11 items-center justify-center rounded-full text-sm font-semibold transition-transform hover:scale-[1.02]',
+                      plan.popular
+                        ? 'bg-[#2F6FED] text-white'
+                        : 'border border-[#B8CFE8] bg-[#F4F8FD] text-[#0B1F3A]',
+                    )}
+                  >
+                    Start free trial
+                  </Link>
+                )}
               </div>
             ))}
           </div>

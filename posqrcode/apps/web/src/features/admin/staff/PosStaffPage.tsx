@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
-import { Plus, Users } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { CheckCircle2, Plus, Trash2, UserX, Users } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmDeleteDialog } from '@/components/app/ConfirmDeleteDialog'
 import { EmptyState } from '@/components/app/EmptyState'
 import { PageHeader } from '@/components/app/PageHeader'
 import { StatusBadge } from '@/components/app/StatusBadge'
@@ -33,7 +35,7 @@ import type { Employee, PosStaffPermissions, StaffRoleId } from '@/lib/types'
 
 /** POS Staff — PIN credentials + sidebar modules (linked to roster roles). */
 export function PosStaffPage() {
-  const { employees, upsert, setStatus } = useStaff()
+  const { employees, upsert, setStatus, remove } = useStaff()
   const { roles } = useStaffRoles()
   const posStaff = useMemo(
     () => employees.filter((e) => e.posAccess || e.pin),
@@ -46,6 +48,7 @@ export function PosStaffPage() {
 
   const [open, setOpen] = useState(false)
   const [editing, setEditing] = useState<Employee | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<Employee | null>(null)
   const [mode, setMode] = useState<'existing' | 'new'>('existing')
   const [form, setForm] = useState({
     employeeId: '',
@@ -54,6 +57,7 @@ export function PosStaffPage() {
     roleId: 'waiter' as StaffRoleId,
     pin: '',
     perms: defaultPosPermissionsForRole('waiter'),
+    status: 'active' as 'active' | 'inactive',
   })
 
   const openAdd = () => {
@@ -68,6 +72,7 @@ export function PosStaffPage() {
         roleId: first.roleId,
         pin: '',
         perms: defaultPosPermissionsForRole(first.roleId),
+        status: 'active',
       })
     } else {
       setMode('new')
@@ -78,6 +83,7 @@ export function PosStaffPage() {
         roleId: 'waiter',
         pin: '',
         perms: defaultPosPermissionsForRole('waiter'),
+        status: 'active',
       })
     }
     setOpen(true)
@@ -93,6 +99,7 @@ export function PosStaffPage() {
       roleId: e.roleId,
       pin: e.pin ?? '',
       perms: e.posPermissions ?? defaultPosPermissionsForRole(e.roleId),
+      status: e.status === 'inactive' ? 'inactive' : 'active',
     })
     setOpen(true)
   }
@@ -140,6 +147,8 @@ export function PosStaffPage() {
       return
     }
 
+    const isActive = form.status === 'active'
+
     if (editing) {
       upsert({
         ...editing,
@@ -147,9 +156,13 @@ export function PosStaffPage() {
         phone: form.phone.trim(),
         roleId: form.roleId,
         pin: form.pin,
-        posAccess: true,
+        status: form.status,
+        posAccess: isActive,
         posPermissions: form.perms,
       })
+      if (editing.status !== form.status) {
+        setStatus(editing.id, form.status)
+      }
       toast.success(`Updated ${form.name.trim()}`)
     } else if (mode === 'existing' && form.employeeId) {
       const base = employees.find((e) => e.id === form.employeeId)
@@ -163,9 +176,13 @@ export function PosStaffPage() {
         phone: form.phone.trim(),
         roleId: form.roleId,
         pin: form.pin,
-        posAccess: true,
+        status: form.status,
+        posAccess: isActive,
         posPermissions: form.perms,
       })
+      if (base.status !== form.status) {
+        setStatus(base.id, form.status)
+      }
       toast.success(`Login enabled for ${form.name.trim()}`)
     } else {
       const next = createEmployeeDraft({
@@ -176,7 +193,8 @@ export function PosStaffPage() {
       upsert({
         ...next,
         pin: form.pin,
-        posAccess: true,
+        status: form.status,
+        posAccess: isActive,
         posPermissions: form.perms,
       })
       toast.success(`Added ${form.name.trim()}`)
@@ -243,6 +261,7 @@ export function PosStaffPage() {
                     ]
                       .filter(Boolean)
                       .join(' · ')
+                    const isInactive = e.status === 'inactive' || !e.posAccess
                     return (
                       <tr key={e.id} className="hover:bg-surface-muted/40">
                         <td className="px-4 py-3 font-medium">{e.name}</td>
@@ -259,24 +278,53 @@ export function PosStaffPage() {
                           {access || '—'}
                         </td>
                         <td className="px-3 py-3">
-                          <StatusBadge status={e.status === 'inactive' ? 'inactive' : 'active'} />
+                          <StatusBadge status={isInactive ? 'inactive' : 'active'} />
                         </td>
                         <td className="px-3 py-3">
-                          <div className="flex gap-2">
+                          <div className="flex items-center gap-1.5">
                             <Button type="button" size="sm" variant="ghost" onClick={() => openEdit(e)}>
                               Edit
                             </Button>
+                            {isInactive ? (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="h-8 border-emerald-500/40 text-emerald-500 hover:bg-emerald-500/10 hover:text-emerald-500 text-xs font-semibold"
+                                onClick={() => {
+                                  setStatus(e.id, 'active')
+                                  upsert({ ...e, status: 'active', posAccess: true })
+                                  toast.success(`${e.name} login activated`)
+                                }}
+                              >
+                                <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+                                Activate
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 text-xs text-muted-foreground hover:text-foreground"
+                                onClick={() => {
+                                  setStatus(e.id, 'inactive')
+                                  upsert({ ...e, status: 'inactive', posAccess: false })
+                                  toast.success(`${e.name} login disabled`)
+                                }}
+                              >
+                                <UserX className="mr-1 h-3.5 w-3.5" />
+                                Disable
+                              </Button>
+                            )}
                             <Button
                               type="button"
-                              size="sm"
+                              size="icon"
                               variant="ghost"
-                              onClick={() => {
-                                setStatus(e.id, 'inactive')
-                                upsert({ ...e, posAccess: false })
-                                toast.success(`${e.name} login disabled`)
-                              }}
+                              className="h-8 w-8 text-danger hover:bg-danger/10 hover:text-danger"
+                              onClick={() => setDeleteTarget(e)}
+                              title="Delete staff member"
                             >
-                              Disable
+                              <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
                         </td>
@@ -300,22 +348,40 @@ export function PosStaffPage() {
           </SheetHeader>
           <div className="mt-6 space-y-4">
             {!editing && (
-              <div className="flex gap-2 rounded-lg border border-line p-1">
-                <button
-                  type="button"
-                  className={`flex-1 rounded-md px-3 py-1.5 text-sm ${mode === 'existing' ? 'bg-brand font-semibold' : 'text-muted-foreground'}`}
-                  onClick={() => setMode('existing')}
-                  disabled={rosterWithoutLogin.length === 0}
-                >
-                  From roster
-                </button>
-                <button
-                  type="button"
-                  className={`flex-1 rounded-md px-3 py-1.5 text-sm ${mode === 'new' ? 'bg-brand font-semibold' : 'text-muted-foreground'}`}
-                  onClick={() => setMode('new')}
-                >
-                  New person
-                </button>
+              <div className="space-y-2">
+                <div className="flex gap-2 rounded-lg border border-line p-1 bg-surface-muted/30">
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                      mode === 'existing'
+                        ? 'bg-brand font-semibold text-brand-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed'
+                    }`}
+                    onClick={() => setMode('existing')}
+                    disabled={rosterWithoutLogin.length === 0}
+                  >
+                    From roster {rosterWithoutLogin.length > 0 ? `(${rosterWithoutLogin.length})` : ''}
+                  </button>
+                  <button
+                    type="button"
+                    className={`flex-1 rounded-md px-3 py-1.5 text-sm transition-colors ${
+                      mode === 'new'
+                        ? 'bg-brand font-semibold text-brand-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                    onClick={() => setMode('new')}
+                  >
+                    New person
+                  </button>
+                </div>
+                {rosterWithoutLogin.length === 0 && (
+                  <p className="rounded-lg border border-line/50 bg-surface-muted/50 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+                    💡 <strong>"From roster"</strong> is disabled because there are currently no employees on the roster without a POS login. You can create a new staff login directly with <strong>New person</strong>, or add staff in{' '}
+                    <Link to="/staff" onClick={() => setOpen(false)} className="font-semibold text-brand underline underline-offset-2">
+                      Staff → Employees
+                    </Link>.
+                  </p>
+                )}
               </div>
             )}
 
@@ -387,6 +453,21 @@ export function PosStaffPage() {
               />
             </div>
 
+            <label className="flex items-center justify-between rounded-xl border border-line px-4 py-3 bg-surface-muted/20">
+              <div className="space-y-0.5">
+                <span className="text-sm font-medium">Active Login Status</span>
+                <p className="text-xs text-muted-foreground">
+                  Allow this staff member to sign in with their mobile & PIN
+                </p>
+              </div>
+              <Switch
+                checked={form.status === 'active'}
+                onCheckedChange={(checked) =>
+                  setForm((f) => ({ ...f, status: checked ? 'active' : 'inactive' }))
+                }
+              />
+            </label>
+
             <div className="rounded-xl border border-line p-4">
               <p className="text-sm font-semibold">Staff sidebar access</p>
               <p className="mt-1 text-xs text-muted-foreground">
@@ -417,16 +498,48 @@ export function PosStaffPage() {
               </div>
             </div>
           </div>
-          <SheetFooter className="mt-8">
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="button" onClick={save}>
-              Save Details
-            </Button>
+          <SheetFooter className="mt-8 gap-2 sm:justify-between">
+            {editing ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-full text-danger hover:text-danger hover:bg-danger/10"
+                onClick={() => setDeleteTarget(editing)}
+              >
+                <Trash2 className="mr-1.5 h-4 w-4" /> Delete Member
+              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex gap-2">
+              <Button type="button" variant="outline" className="rounded-full" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="button" className="rounded-full" onClick={save}>
+                Save Details
+              </Button>
+            </div>
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      <ConfirmDeleteDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          if (!deleteTarget) return
+          remove(deleteTarget.id)
+          toast.success(`${deleteTarget.name} deleted`)
+          if (editing?.id === deleteTarget.id) {
+            setOpen(false)
+            setEditing(null)
+          }
+          setDeleteTarget(null)
+        }}
+        title={`Delete ${deleteTarget?.name}?`}
+        description={`Are you sure you want to remove ${deleteTarget?.name}? This will permanently delete their POS PIN login and roster record.`}
+        confirmText="Delete Staff Member"
+      />
     </>
   )
 }

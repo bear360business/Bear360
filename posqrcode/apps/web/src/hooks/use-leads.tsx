@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
+import { getAccessToken } from '@/lib/api-client'
 import { isSuperAdmin } from '@/lib/auth'
 import {
   apiGetPlatformConfig,
@@ -72,7 +73,6 @@ function readStored(): MarketingLead[] {
 function writeStored(leads: MarketingLead[]) {
   try {
     localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(leads))
-    window.dispatchEvent(new Event(LEADS_EVENT))
   } catch {
     /* ignore */
   }
@@ -138,15 +138,15 @@ export function LeadsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const sync = () => setLeads(readStored())
-    window.addEventListener(LEADS_EVENT, sync)
-    window.addEventListener('storage', (e) => {
+    const onStorage = (e: StorageEvent) => {
       if (e.key === LEADS_STORAGE_KEY || e.key === null) sync()
-    })
-    return () => window.removeEventListener(LEADS_EVENT, sync)
+    }
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
   }, [])
 
   useEffect(() => {
-    if (mock || !isSuperAdmin()) return
+    if (mock || !isSuperAdmin() || !getAccessToken()) return
     let cancelled = false
     void apiGetPlatformConfig()
       .then((cfg) => {

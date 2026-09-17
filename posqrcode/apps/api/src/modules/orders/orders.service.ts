@@ -8,6 +8,7 @@ import {
   type CreateOrderInput,
   type OrderDto,
   type OrderStatus,
+  type UpdateOrderInput,
 } from '@bear360/shared'
 import type { Order, OrderType as PrismaOrderType } from '@prisma/client'
 import { PrismaService } from '../../prisma/prisma.service'
@@ -25,15 +26,22 @@ export class OrdersService {
 
   async list(user: JwtPayload, restaurantId: string, status?: OrderStatus) {
     this.tenants.assertAccess(user, restaurantId)
-    const rows = await this.prisma.order.findMany({
-      where: {
-        restaurantId,
-        ...(status ? { status } : {}),
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 100,
-    })
-    return rows.map(toDto)
+    const [rows, tables] = await Promise.all([
+      this.prisma.order.findMany({
+        where: {
+          restaurantId,
+          ...(status ? { status } : {}),
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      }),
+      this.prisma.diningTable.findMany({
+        where: { restaurantId },
+        select: { id: true, name: true },
+      }),
+    ])
+    const tableMap = new Map(tables.map((t) => [t.id, t.name]))
+    return rows.map((o) => toDto(o, o.tableId ? tableMap.get(o.tableId) : undefined))
   }
 
   async get(user: JwtPayload, restaurantId: string, orderId: string) {
@@ -42,7 +50,15 @@ export class OrdersService {
       where: { id: orderId, restaurantId },
     })
     if (!order) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Order not found' })
-    return toDto(order)
+    let tableName: string | undefined
+    if (order.tableId) {
+      const t = await this.prisma.diningTable.findUnique({
+        where: { id: order.tableId },
+        select: { name: true },
+      })
+      tableName = t?.name
+    }
+    return toDto(order, tableName)
   }
 
   async create(input: CreateOrderInput, user?: JwtPayload): Promise<OrderDto> {
@@ -101,7 +117,16 @@ export class OrdersService {
       },
     })
 
-    const dto = toDto(order)
+    let tableName = input.tableName
+    if (!tableName && input.tableId) {
+      const table = await this.prisma.diningTable.findUnique({
+        where: { id: input.tableId },
+        select: { name: true },
+      })
+      tableName = table?.name
+    }
+
+    const dto = toDto(order, tableName)
     this.gateway.emitOrderCreated(input.restaurantId, dto)
     return dto
   }
@@ -133,10 +158,83 @@ export class OrdersService {
         ...(status === 'paid' ? { paid: true } : {}),
       },
     })
-    const dto = toDto(updated)
+    let tableName: string | undefined
+    if (order.tableId) {
+      const t = await this.prisma.diningTable.findUnique({
+        where: { id: order.tableId },
+        select: { name: true },
+      })
+      tableName = t?.name
+    }
+    const dto = toDto(updated, tableName)
     this.gateway.emitOrderStatus(restaurantId, dto)
     this.gateway.emitOrderUpdated(restaurantId, dto)
     return dto
+  }
+
+  async update(
+    user: JwtPayload,
+    restaurantId: string,
+    orderId: string,
+    input: UpdateOrderInput,
+  ): Promise<OrderDto> {
+    this.tenants.assertAccess(user, restaurantId)
+    const existing = await this.prisma.order.findFirst({
+      where: { id: orderId, restaurantId },
+    })
+    if (!existing) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Order not found' })
+
+    const restaurant = await this.prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    })
+
+    const lines = input.lines ?? (existing.lines as OrderDto['lines'])
+    const subtotal = lines.reduce(
+      (s: number, l: { unitPrice: number; qty: number }) => s + l.unitPrice * l.qty,
+      0,
+    )
+    const taxRate = Number(restaurant?.gstRatePct ?? 5) / 100
+    const tax = Math.round(subtotal * taxRate * 100) / 100
+    const total = Math.round((subtotal + tax) * 100) / 100
+
+    const updated = await this.prisma.order.update({
+      where: { id: existing.id },
+      data: {
+        ...(input.lines ? { lines, subtotal, tax, total } : {}),
+        ...(input.type ? { type: toPrismaType(input.type) } : {}),
+        ...(input.tableId !== undefined ? { tableId: input.tableId } : {}),
+        ...(input.guestName !== undefined ? { guestName: input.guestName } : {}),
+        ...(input.guestPhone !== undefined ? { guestPhone: input.guestPhone } : {}),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+        ...(input.paymentMethod !== undefined ? { paymentMethod: input.paymentMethod } : {}),
+        ...(input.paid !== undefined ? { paid: input.paid } : {}),
+        ...(input.status ? { status: input.status } : {}),
+      },
+    })
+    let tableName = input.tableName
+    if (!tableName && (input.tableId || existing.tableId)) {
+      const tid = input.tableId || existing.tableId
+      if (tid) {
+        const t = await this.prisma.diningTable.findUnique({
+          where: { id: tid },
+          select: { name: true },
+        })
+        tableName = t?.name
+      }
+    }
+    const dto = toDto(updated, tableName)
+    this.gateway.emitOrderUpdated(restaurantId, dto)
+    return dto
+  }
+
+  async delete(user: JwtPayload, restaurantId: string, orderId: string) {
+    this.tenants.assertAccess(user, restaurantId)
+    const order = await this.prisma.order.findFirst({
+      where: { id: orderId, restaurantId },
+    })
+    if (!order) throw new NotFoundException({ code: 'NOT_FOUND', message: 'Order not found' })
+    await this.prisma.order.delete({ where: { id: order.id } })
+    return { ok: true, id: orderId }
   }
 
   private async nextNumber(restaurantId: string): Promise<string> {
@@ -155,12 +253,13 @@ function fromPrismaType(type: PrismaOrderType): CreateOrderInput['type'] {
   return type
 }
 
-function toDto(order: Order): OrderDto {
+function toDto(order: Order, tableName?: string | null): OrderDto {
   return {
     id: order.id,
     number: order.number,
     restaurantId: order.restaurantId,
     tableId: order.tableId,
+    tableName: tableName ?? undefined,
     type: fromPrismaType(order.type),
     channel: order.channel,
     status: order.status as OrderStatus,

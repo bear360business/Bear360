@@ -4,14 +4,13 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from 'react'
+import { getAccessToken } from '@/lib/api-client'
 import { isSuperAdmin } from '@/lib/auth'
 import { apiGetPlatformConfig, apiPutPlatformConfig } from '@/lib/api-platform'
 import {
-  SHOP_EVENT,
   SHOP_STORAGE_KEY,
   blankShopProduct,
   defaultShopCatalog,
@@ -23,7 +22,6 @@ import { reportApiError } from '@/lib/api-error'
 
 interface ShopContextValue {
   products: ShopProduct[]
-  /** Active products for restaurant shop (not archived), sorted. */
   activeProducts: ShopProduct[]
   qrStands: ShopProduct[]
   create: (draft?: Partial<ShopProduct>) => ShopProduct
@@ -45,34 +43,34 @@ function readStored(): ShopProduct[] {
   }
 }
 
-function writeStored(products: ShopProduct[]) {
+function sortProducts(list: ShopProduct[]) {
+  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
+}
+
+function writeStored(products: ShopProduct[]): void {
   try {
     localStorage.setItem(SHOP_STORAGE_KEY, JSON.stringify(products))
-    window.dispatchEvent(new Event(SHOP_EVENT))
   } catch {
     /* ignore */
   }
 }
 
-function sortProducts(list: ShopProduct[]) {
-  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name))
-}
-
 export function ShopProvider({ children }: { children: ReactNode }) {
   const mock = useMockData()
-  const apiReady = useRef(mock)
   const [products, setProducts] = useState<ShopProduct[]>(() => readStored())
 
-  useEffect(() => {
-    writeStored(products)
-    if (!mock && apiReady.current && isSuperAdmin()) {
-      void apiPutPlatformConfig({ shop: products }).catch((err) => reportApiError(err))
-    }
-  }, [products, mock])
+  const persist = useCallback(
+    (next: ShopProduct[]) => {
+      writeStored(next)
+      if (!mock && isSuperAdmin() && getAccessToken()) {
+        void apiPutPlatformConfig({ shop: next }).catch((err) => reportApiError(err))
+      }
+    },
+    [mock],
+  )
 
   useEffect(() => {
-    if (mock || !isSuperAdmin()) {
-      apiReady.current = true
+    if (mock || !isSuperAdmin() || !getAccessToken()) {
       return
     }
     let cancelled = false
@@ -86,9 +84,6 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         }
       })
       .catch((err) => reportApiError(err))
-      .finally(() => {
-        if (!cancelled) apiReady.current = true
-      })
     return () => {
       cancelled = true
     }
@@ -99,10 +94,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     const onStorage = (e: StorageEvent) => {
       if (e.key === SHOP_STORAGE_KEY || e.key === null) sync()
     }
-    window.addEventListener(SHOP_EVENT, sync)
     window.addEventListener('storage', onStorage)
     return () => {
-      window.removeEventListener(SHOP_EVENT, sync)
       window.removeEventListener('storage', onStorage)
     }
   }, [])
@@ -112,19 +105,25 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       ...draft,
       updatedAt: new Date().toISOString(),
     })
-    setProducts((prev) => [...prev, next])
+    setProducts((prev) => {
+      const updated = [...prev, next]
+      persist(updated)
+      return updated
+    })
     return next
-  }, [])
+  }, [persist])
 
   const update = useCallback((id: string, patch: Partial<ShopProduct>) => {
-    setProducts((prev) =>
-      prev.map((p) =>
+    setProducts((prev) => {
+      const updated = prev.map((p) =>
         p.id === id
           ? { ...p, ...patch, id: p.id, updatedAt: new Date().toISOString() }
           : p,
-      ),
-    )
-  }, [])
+      )
+      persist(updated)
+      return updated
+    })
+  }, [persist])
 
   const archive = useCallback(
     (id: string) => update(id, { archived: true }),
@@ -137,14 +136,18 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   )
 
   const remove = useCallback((id: string) => {
-    setProducts((prev) => prev.filter((p) => p.id !== id))
-  }, [])
+    setProducts((prev) => {
+      const updated = prev.filter((p) => p.id !== id)
+      persist(updated)
+      return updated
+    })
+  }, [persist])
 
   const reset = useCallback(() => {
     const next = defaultShopCatalog()
-    writeStored(next)
+    persist(next)
     setProducts(next)
-  }, [])
+  }, [persist])
 
   const activeProducts = useMemo(
     () => sortProducts(products.filter((p) => !p.archived)),

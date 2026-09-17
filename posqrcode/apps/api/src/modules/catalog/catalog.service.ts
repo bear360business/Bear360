@@ -29,7 +29,7 @@ export class CatalogService {
   // ----- Menu -----
   async listMenu(user: JwtPayload, restaurantId: string) {
     this.tenants.assertAccess(user, restaurantId)
-    let [categories, items] = await Promise.all([
+    const [categories, items] = await Promise.all([
       this.prisma.menuCategory.findMany({
         where: { restaurantId },
         orderBy: { sortOrder: 'asc' },
@@ -39,42 +39,6 @@ export class CatalogService {
         orderBy: { name: 'asc' },
       }),
     ])
-
-    if (categories.length === 0 && items.length === 0) {
-      const cat1 = await this.prisma.menuCategory.create({
-        data: { restaurantId, name: 'Specialties', emoji: '⭐', sortOrder: 0 },
-      })
-      const cat2 = await this.prisma.menuCategory.create({
-        data: { restaurantId, name: 'Beverages', emoji: '🥤', sortOrder: 1 },
-      })
-
-      const item1 = await this.prisma.menuItem.create({
-        data: {
-          restaurantId,
-          categoryId: cat1.id,
-          name: 'Signature Platter',
-          description: 'Chef signature dish with fresh ingredients',
-          price: 199,
-          veg: true,
-          available: true,
-          popular: true,
-        },
-      })
-      const item2 = await this.prisma.menuItem.create({
-        data: {
-          restaurantId,
-          categoryId: cat2.id,
-          name: 'Special Tea',
-          description: 'Brewed fresh with aromatic spices and herbs',
-          price: 39,
-          veg: true,
-          available: true,
-          popular: true,
-        },
-      })
-      categories = [cat1, cat2]
-      items = [item1, item2]
-    }
 
     return {
       categories: categories.map((c) => ({
@@ -184,27 +148,10 @@ export class CatalogService {
   // ----- Tables -----
   async listTables(user: JwtPayload, restaurantId: string) {
     this.tenants.assertAccess(user, restaurantId)
-    let rows = await this.prisma.diningTable.findMany({
+    const rows = await this.prisma.diningTable.findMany({
       where: { restaurantId },
       orderBy: { number: 'asc' },
     })
-
-    if (rows.length === 0) {
-      await this.prisma.diningTable.createMany({
-        data: [
-          { restaurantId, number: 1, name: 'Table 1', seats: 2, status: 'free', zone: 'Main' },
-          { restaurantId, number: 2, name: 'Table 2', seats: 4, status: 'free', zone: 'Main' },
-          { restaurantId, number: 3, name: 'Table 3', seats: 4, status: 'free', zone: 'Main' },
-          { restaurantId, number: 4, name: 'Table 4', seats: 6, status: 'free', zone: 'Main' },
-          { restaurantId, number: 5, name: 'Table 5', seats: 4, status: 'free', zone: 'Balcony' },
-        ],
-        skipDuplicates: true,
-      })
-      rows = await this.prisma.diningTable.findMany({
-        where: { restaurantId },
-        orderBy: { number: 'asc' },
-      })
-    }
 
     return rows.map((t) => ({
       id: t.id,
@@ -213,28 +160,68 @@ export class CatalogService {
       seats: t.seats,
       status: t.status,
       zone: t.zone,
-      activeOrderId: t.activeOrderId,
+      activeOrderId: t.activeOrderId ?? undefined,
     }))
   }
 
   async upsertTable(user: JwtPayload, restaurantId: string, input: DiningTableInput) {
     this.tenants.assertAccess(user, restaurantId)
+    let number = input.number
+    if (!number || number < 1) {
+      const highest = await this.prisma.diningTable.findFirst({
+        where: { restaurantId },
+        orderBy: { number: 'desc' },
+      })
+      number = (highest?.number ?? 0) + 1
+    }
+
     const data = {
       name: input.name,
-      number: input.number,
+      number,
       seats: input.seats ?? 4,
       status: input.status ?? 'free',
       zone: input.zone ?? 'Main',
       activeOrderId: input.activeOrderId ?? null,
     }
+
     if (input.id) {
       const existing = await this.prisma.diningTable.findFirst({
         where: { id: input.id, restaurantId },
       })
       if (existing) {
-        return this.prisma.diningTable.update({ where: { id: input.id }, data })
+        const updated = await this.prisma.diningTable.update({ where: { id: input.id }, data })
+        return {
+          id: updated.id,
+          name: updated.name,
+          number: updated.number,
+          seats: updated.seats,
+          status: updated.status,
+          zone: updated.zone,
+          activeOrderId: updated.activeOrderId ?? undefined,
+        }
       }
     }
+
+    // Check if table with this number already exists in venue
+    const existingByNumber = await this.prisma.diningTable.findUnique({
+      where: { restaurantId_number: { restaurantId, number } },
+    })
+    if (existingByNumber) {
+      const updated = await this.prisma.diningTable.update({
+        where: { id: existingByNumber.id },
+        data,
+      })
+      return {
+        id: updated.id,
+        name: updated.name,
+        number: updated.number,
+        seats: updated.seats,
+        status: updated.status,
+        zone: updated.zone,
+        activeOrderId: updated.activeOrderId ?? undefined,
+      }
+    }
+
     const ent = await this.entitlements.forRestaurant(user, restaurantId)
     if (ent.limits.tables != null) {
       const count = await this.prisma.diningTable.count({ where: { restaurantId } })
@@ -245,7 +232,17 @@ export class CatalogService {
         })
       }
     }
-    return this.prisma.diningTable.create({ data: { restaurantId, ...data } })
+
+    const created = await this.prisma.diningTable.create({ data: { restaurantId, ...data } })
+    return {
+      id: created.id,
+      name: created.name,
+      number: created.number,
+      seats: created.seats,
+      status: created.status,
+      zone: created.zone,
+      activeOrderId: created.activeOrderId ?? undefined,
+    }
   }
 
   async removeTable(user: JwtPayload, restaurantId: string, id: string) {
@@ -326,6 +323,46 @@ export class CatalogService {
     this.tenants.assertAccess(user, restaurantId)
     await this.prisma.employee.deleteMany({ where: { id, restaurantId } })
     return { ok: true }
+  }
+
+  async posUnlock(
+    user: JwtPayload,
+    restaurantId: string,
+    input: import('@bear360/shared').PosUnlockInput,
+  ) {
+    this.tenants.assertAccess(user, restaurantId)
+    const phone = input.phone.replace(/\D/g, '').slice(-10)
+    // Find active POS-enabled staff whose phone ends with the given digits
+    const candidates = await this.prisma.employee.findMany({
+      where: {
+        restaurantId,
+        posAccess: true,
+        active: true,
+      },
+    })
+    for (const emp of candidates) {
+      const empPhone = emp.phone.replace(/\D/g, '').slice(-10)
+      if (empPhone !== phone) continue
+      if (!emp.pinHash) continue
+      const valid = await argon2.verify(emp.pinHash, input.pin)
+      if (!valid) continue
+      // Check posPermissions.posTerminal
+      const perms = (emp.posPermissions ?? {}) as Record<string, boolean>
+      if (perms.posTerminal === false) {
+        throw new BadRequestException({
+          code: 'NO_POS_ACCESS',
+          message: `${emp.name} does not have POS terminal access.`,
+        })
+      }
+      return {
+        ...this.toEmployeeDto(emp),
+        posPermissions: perms,
+      }
+    }
+    throw new BadRequestException({
+      code: 'INVALID_CREDENTIALS',
+      message: 'Invalid mobile or PIN.',
+    })
   }
 
   // ----- Inventory -----
